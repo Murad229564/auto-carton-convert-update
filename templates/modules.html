@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Epyllion PO Automation — মডিউল সিলেক্ট করুন</title>
+<style>
+  :root {
+    --ink: #1c2b23;
+    --paper: #f6f4ee;
+    --card: #ffffff;
+    --line: #d8d3c4;
+    --brown: #7a4a2c;
+    --brown-dark: #5c3620;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', 'Noto Sans Bengali', Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 40px 16px 60px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 34px; }
+  .tag {
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--brown);
+    font-weight: 700;
+  }
+  h1 { font-size: 26px; margin: 8px 0 6px; }
+  .sub { color: #5b5b52; font-size: 13.5px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+
+  .module-card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 24px 20px 20px;
+    text-decoration: none;
+    color: var(--ink);
+    display: block;
+    overflow: hidden;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    border-top: 5px solid var(--accent, var(--brown));
+  }
+  .module-card.active {
+    cursor: pointer;
+  }
+  .module-card.active:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 30px rgba(60, 40, 20, 0.14);
+    border-color: var(--accent, var(--brown));
+  }
+  .module-card.disabled {
+    cursor: not-allowed;
+    filter: grayscale(0.55);
+    opacity: 0.72;
+  }
+
+  .module-icon {
+    font-size: 34px;
+    width: 58px; height: 58px;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--accent, var(--brown)) 14%, white);
+    border-radius: 14px;
+    margin-bottom: 14px;
+  }
+  .module-name { font-size: 16.5px; font-weight: 700; margin: 0 0 4px; }
+  .module-desc { font-size: 12px; color: #6b6b60; line-height: 1.5; margin: 0; }
+
+  .status-badge {
+    position: absolute; top: 16px; right: 16px;
+    font-size: 9.5px; font-weight: 700;
+    letter-spacing: .05em;
+    padding: 3px 9px;
+    border-radius: 20px;
+  }
+  .status-badge.live { background: #e7f2ea; color: #2c6b3f; }
+  .status-badge.soon { background: #eeeee7; color: #837f6f; }
+
+  .module-card.active .module-name { color: var(--accent, var(--brown-dark)); }
+
+  footer {
+    text-align: center;
+    margin-top: 44px;
+    color: #8a8a7d;
+    font-size: 11.5px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">Epyllion Limited</div>
+    <h1>PO Automation — মডিউল সিলেক্ট করুন</h1>
+    <div class="sub">যেই আইটেম নিয়ে কাজ করবেন, সেই মডিউলে ক্লিক করুন</div>
+  </header>
+
+  <div class="grid">
+    <a href="/autocarton" class="module-card active" style="--accent:#7a4a2c;">
+      <span class="status-badge live">LIVE</span>
+      <div class="module-icon">📦</div>
+      <div class="module-name">Auto Carton</div>
+      <p class="module-desc">Carton PO PDF থেকে অটোমেটিক Order Upload Template তৈরি (IN-HOUSE / OUT-HOUSE)</p>
+    </a>
+
+    <a href="/thermal" class="module-card active" style="--accent:#2f7a6e;">
+      <span class="status-badge live">LIVE</span>
+      <div class="module-icon">🌡️</div>
+      <div class="module-name">Thermal</div>
+      <p class="module-desc">Thermal PO PDF থেকে অটোমেটিক Order Upload Template তৈরি (IN-HOUSE)</p>
+    </a>
+
+    <div class="module-card disabled" style="--accent:#3a5a7a;">
+      <span class="status-badge soon">Coming Soon</span>
+      <div class="module-icon">🖨️</div>
+      <div class="module-name">Printing Press</div>
+      <p class="module-desc">Printing Press PO প্রসেসিং — শীঘ্রই আসছে</p>
+    </div>
+
+    <div class="module-card disabled" style="--accent:#a35a2f;">
+      <span class="status-badge soon">Coming Soon</span>
+      <div class="module-icon">🔥</div>
+      <div class="module-name">Heat Transfer / Heat Seal</div>
+      <p class="module-desc">Heat Transfer ও Heat Seal PO প্রসেসিং — শীঘ্রই আসছে</p>
+    </div>
+
+    <div class="module-card disabled" style="--accent:#6a3f7a;">
+      <span class="status-badge soon">Coming Soon</span>
+      <div class="module-icon">🏷️</div>
+      <div class="module-name">Label</div>
+      <p class="module-desc">Label PO প্রসেসিং — শীঘ্রই আসছে</p>
+    </div>
+
+    <div class="module-card disabled" style="--accent:#4a7a3f;">
+      <span class="status-badge soon">Coming Soon</span>
+      <div class="module-icon">🧵</div>
+      <div class="module-name">Elastic</div>
+      <p class="module-desc">Elastic PO প্রসেসিং — শীঘ্রই আসছে</p>
+    </div>
+  </div>
+
+  <footer>Created by Murad Hossain · Epyllion Limited</footer>
+</div>
+</body>
+</html>
