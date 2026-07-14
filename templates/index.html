@@ -1,1274 +1,1114 @@
 <!DOCTYPE html>
 <html lang="bn">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AutoCarton PO Converter — Epyllion</title>
-  <style>
-    :root {
-      --ink: #1c2b23;
-      --paper: #f6f4ee;
-      --card: #ffffff;
-      --line: #d8d3c4;
-      --brown: #7a4a2c;
-      --brown-dark: #5c3620;
-      --ok: #3f6b4a;
-      --err: #a33d2f;
-      --locked-bg: #eef0ec;
-      --locked-border: #c7cbc0;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', 'Noto Sans Bengali', Arial, sans-serif;
-      background: var(--paper);
-      color: var(--ink);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      padding: 28px 16px;
-    }
-
-    .wrap {
-      max-width: 680px;
-      width: 100%;
-    }
-
-    header {
-      margin-bottom: 20px;
-    }
-
-    .tag {
-      font-size: 11px;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--brown);
-      font-weight: 700;
-    }
-
-    h1 {
-      font-size: 23px;
-      margin: 5px 0 3px;
-      line-height: 1.2;
-    }
-
-    .sub {
-      color: #5b5b52;
-      font-size: 13px;
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      padding: 20px;
-      margin-bottom: 16px;
-    }
-
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--brown);
-      margin: 0 0 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 14px;
-    }
-
-    .field {
-      margin-bottom: 2px;
-    }
-
-    .field.full {
-      grid-column: 1 / -1;
-    }
-
-    label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      margin: 0 0 4px;
-    }
-
-    label .req {
-      color: var(--err);
-      font-weight: 700;
-    }
-
-    select,
-    input[type=text],
-    input[type=date] {
-      width: 100%;
-      padding: 8px 10px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      font-size: 13px;
-      background: #fdfcf9;
-      color: var(--ink);
-    }
-
-    input[readonly].locked {
-      background: var(--locked-bg);
-      border-color: var(--locked-border);
-      color: #3a3f38;
-      cursor: default;
-      padding-right: 30px;
-    }
-
-    .radio-group {
-      display: flex;
-      gap: 14px;
-      align-items: center;
-      height: 34px;
-    }
-
-    .radio-group label {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-weight: 500;
-      margin: 0;
-      font-size: 12.5px;
-    }
-
-    .drop {
-      border: 2px dashed var(--line);
-      border-radius: 8px;
-      padding: 20px 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .15s, background .15s;
-    }
-
-    .drop.drag {
-      border-color: var(--brown);
-      background: #fbf3ec;
-    }
-
-    .drop p {
-      margin: 3px 0;
-      font-size: 13px;
-    }
-
-    .drop .fname {
-      font-weight: 700;
-      color: var(--brown-dark);
-    }
-
-    input[type=file] {
-      display: none;
-    }
-
-    button {
-      width: 100%;
-      margin-top: 14px;
-      padding: 12px;
-      border: none;
-      border-radius: 6px;
-      background: var(--brown);
-      color: #fff;
-      font-size: 14.5px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background .15s;
-    }
-
-    button:hover {
-      background: var(--brown-dark);
-    }
-
-    button:disabled {
-      background: #b7ab9c;
-      cursor: not-allowed;
-    }
-
-    .status {
-      margin-top: 12px;
-      font-size: 12.5px;
-      min-height: 18px;
-    }
-
-    .status.ok {
-      color: var(--ok);
-    }
-
-    .status.err {
-      color: var(--err);
-    }
-
-    .hint {
-      font-size: 11px;
-      color: #7a7a70;
-      margin-top: 4px;
-    }
-
-    .field-err {
-      font-size: 11px;
-      color: var(--err);
-      margin-top: 3px;
-      display: none;
-    }
-
-    footer {
-      text-align: center;
-      font-size: 12px;
-      color: #948d7d;
-      margin-top: 16px;
-    }
-
-    /* --- Custom searchable combobox: dropdown সবসময় ফিল্ডের ঠিক নিচে দেখাবে --- */
-    .combo {
-      position: relative;
-    }
-
-    .combo-panel {
-      display: none;
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      max-height: 200px;
-      overflow-y: auto;
-      background: #fff;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.10);
-      z-index: 30;
-    }
-
-    .combo-panel.open {
-      display: block;
-    }
-
-    .combo-option {
-      padding: 8px 11px;
-      font-size: 13px;
-      cursor: pointer;
-    }
-
-    .combo-option:hover,
-    .combo-option.active {
-      background: #fbf3ec;
-      color: var(--brown-dark);
-    }
-
-    .combo-empty {
-      padding: 8px 11px;
-      font-size: 12px;
-      color: #948d7d;
-    }
-
-    .combo-clear {
-      display: none;
-      position: absolute;
-      right: 7px;
-      top: 50%;
-      transform: translateY(-50%);
-      cursor: pointer;
-      color: #8a8f84;
-      font-size: 12px;
-      width: 18px;
-      height: 18px;
-      text-align: center;
-      line-height: 18px;
-      border-radius: 50%;
-    }
-
-    .combo-clear:hover {
-      background: #e2e5de;
-      color: var(--err);
-    }
-
-    .combo.has-clear .combo-clear {
-      display: block;
-    }
-
-    /* --- Loading spinner --- */
-    .spinner {
-      display: inline-block;
-      width: 15px;
-      height: 15px;
-      border: 2px solid rgba(122, 74, 44, 0.25);
-      border-top-color: var(--brown);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      vertical-align: -2px;
-      margin-right: 7px;
-    }
-
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
-    }
-
-    .status.loading {
-      color: var(--brown-dark);
-    }
-
-    button .spinner {
-      border-color: rgba(255, 255, 255, 0.4);
-      border-top-color: #fff;
-    }
-
-    /* --- PDF-এর ডেলিভারি প্লেস/অ্যাড্রেস হিন্ট --- */
-    .pdf-hint-box {
-      display: none;
-      margin-top: 8px;
-      padding: 8px 10px;
-      background: #f7f4ee;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      font-size: 11.5px;
-      color: #4a4a42;
-    }
-
-    .pdf-hint-box.show {
-      display: block;
-    }
-
-    .pdf-hint-box b {
-      color: var(--brown-dark);
-    }
-
-    .pdf-hint-box ul {
-      margin: 3px 0 0;
-      padding-left: 16px;
-    }
-
-    /* --- Remarks checkboxes --- */
-    .remark-checks {
-      display: flex;
-      gap: 18px;
-      margin-top: 10px;
-      align-items: center;
-    }
-
-    .remark-checks label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 500;
-      margin: 0;
-      font-size: 12.5px;
-      cursor: pointer;
-    }
-
-    .remark-checks input[type=checkbox] {
-      width: 15px;
-      height: 15px;
-      cursor: pointer;
-    }
-
-    /* --- ইমারজেন্সি Force Override বক্স --- */
-    .force-override-box {
-      margin: 10px 0 16px;
-      padding: 10px 12px;
-      background: #fff6ea;
-      border: 1px solid #e8c88a;
-      border-radius: 8px;
-    }
-
-    .force-override-box label {
-      display: flex;
-      align-items: flex-start;
-      gap: 9px;
-      margin: 0;
-      cursor: pointer;
-      font-weight: 400;
-    }
-
-    .force-override-box input[type=checkbox] {
-      width: 16px;
-      height: 16px;
-      margin-top: 2px;
-      cursor: pointer;
-      flex-shrink: 0;
-    }
-
-    .force-override-box span {
-      font-size: 11.5px;
-      line-height: 1.5;
-      color: #6b5a35;
-    }
-
-    .force-override-box span b {
-      color: #8a5a00;
-    }
-
-    .force-override-box.active {
-      background: #fdecec;
-      border-color: var(--err);
-    }
-
-    .force-override-box.active span b {
-      color: var(--err);
-    }
-
-    /* --- ফুল-পেজ ব্লকিং ওভারলে (প্রসেসিং চলাকালীন অন্য কোথাও ক্লিক আটকাতে) --- */
-    .page-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(20, 18, 12, 0.55);
-      z-index: 9999;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .page-overlay.show {
-      display: flex;
-    }
-
-    .overlay-box {
-      background: #fff;
-      padding: 26px 34px;
-      border-radius: 12px;
-      text-align: center;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-      max-width: 320px;
-    }
-
-    .spinner-lg {
-      width: 38px;
-      height: 38px;
-      border: 4px solid rgba(122, 74, 44, 0.2);
-      border-top-color: var(--brown);
-      border-radius: 50%;
-      animation: spin .7s linear infinite;
-      margin: 0 auto 14px;
-    }
-
-    .overlay-box p {
-      margin: 0;
-      font-size: 13.5px;
-      color: var(--brown-dark);
-      font-weight: 500;
-    }
-
-    /* --- মডিউল কালার বার + ব্যাক লিংক (কোন মডিউলে আছি বোঝার জন্য) --- */
-    .module-bar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 5px;
-      background: var(--brown);
-      z-index: 10000;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: var(--brown);
-      text-decoration: none;
-      font-weight: 600;
-      margin-bottom: 10px;
-    }
-
-    .back-link:hover {
-      text-decoration: underline;
-    }
-
-    .module-badge {
-      display: inline-block;
-      font-size: 10.5px;
-      font-weight: 700;
-      letter-spacing: .05em;
-      padding: 3px 9px;
-      border-radius: 20px;
-      background: var(--brown);
-      color: #fff;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoCarton PO Converter — Epyllion</title>
+<style>
+  :root {
+    --ink: #1c2b23;
+    --paper: #f6f4ee;
+    --card: #ffffff;
+    --line: #d8d3c4;
+    --brown: #7a4a2c;
+    --brown-dark: #5c3620;
+    --ok: #3f6b4a;
+    --err: #a33d2f;
+    --locked-bg: #eef0ec;
+    --locked-border: #c7cbc0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', 'Noto Sans Bengali', Arial, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 28px 16px;
+  }
+  .wrap { max-width: 680px; width: 100%; }
+  header { margin-bottom: 20px; }
+  .tag {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brown);
+    font-weight: 700;
+  }
+  h1 { font-size: 23px; margin: 5px 0 3px; line-height: 1.2; }
+  .sub { color: #5b5b52; font-size: 13px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--brown);
+    margin: 0 0 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+  }
+  .field { margin-bottom: 2px; }
+  .field.full { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  label .req { color: var(--err); font-weight: 700; }
+  select, input[type=text], input[type=date] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 13px;
+    background: #fdfcf9;
+    color: var(--ink);
+  }
+  input[readonly].locked {
+    background: var(--locked-bg);
+    border-color: var(--locked-border);
+    color: #3a3f38;
+    cursor: default;
+    padding-right: 30px;
+  }
+  .radio-group { display: flex; gap: 14px; align-items: center; height: 34px; }
+  .radio-group label { display: flex; align-items: center; gap: 5px; font-weight: 500; margin: 0; font-size: 12.5px; }
+
+  .drop {
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 20px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .drop.drag { border-color: var(--brown); background: #fbf3ec; }
+  .drop p { margin: 3px 0; font-size: 13px; }
+  .drop .fname { font-weight: 700; color: var(--brown-dark); }
+  input[type=file] { display: none; }
+
+  button {
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: var(--brown);
+    color: #fff;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  button:hover { background: var(--brown-dark); }
+  button:disabled { background: #b7ab9c; cursor: not-allowed; }
+
+  .status { margin-top: 12px; font-size: 12.5px; min-height: 18px; }
+  .status:not(:empty) {
+    padding: 11px 14px;
+    border-radius: 9px;
+    line-height: 1.55;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .status:not(:empty)::before {
+    flex-shrink: 0;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .status.ok { color: #1e5c33; background: #eaf6ee; border: 1px solid #bfe6cb; }
+  .status.ok::before { content: "✓"; color: var(--ok); font-weight: 800; }
+  .status.err { color: #7a1f1f; background: #fdecec; border: 1px solid #f3c6c6; }
+  .status.err::before { content: "⚠"; }
+  .status.loading { color: var(--brown-dark); background: #f7f2ea; border: 1px solid #e8dcc8; }
+
+  .hint { font-size: 11px; color: #7a7a70; margin-top: 4px; }
+  .field-err { font-size: 11px; color: var(--err); margin-top: 3px; display: none; }
+  footer { text-align: center; font-size: 12px; color: #948d7d; margin-top: 16px; }
+
+  /* --- Custom searchable combobox: dropdown সবসময় ফিল্ডের ঠিক নিচে দেখাবে --- */
+  .combo { position: relative; }
+  .combo-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: 0 8px 18px rgba(0,0,0,0.10);
+    z-index: 30;
+  }
+  .combo-panel.open { display: block; }
+  .combo-option { padding: 8px 11px; font-size: 13px; cursor: pointer; }
+  .combo-option:hover, .combo-option.active { background: #fbf3ec; color: var(--brown-dark); }
+  .combo-empty { padding: 8px 11px; font-size: 12px; color: #948d7d; }
+  .combo-clear {
+    display: none;
+    position: absolute;
+    right: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #8a8f84;
+    font-size: 12px;
+    width: 18px; height: 18px;
+    text-align: center;
+    line-height: 18px;
+    border-radius: 50%;
+  }
+  .combo-clear:hover { background: #e2e5de; color: var(--err); }
+  .combo.has-clear .combo-clear { display: block; }
+
+  /* --- Loading spinner --- */
+  .spinner {
+    display: inline-block;
+    width: 15px; height: 15px;
+    border: 2px solid rgba(122,74,44,0.25);
+    border-top-color: var(--brown);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: -2px;
+    margin-right: 7px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  button .spinner { border-color: rgba(255,255,255,0.4); border-top-color: #fff; }
+
+  /* --- PDF-এর ডেলিভারি প্লেস/অ্যাড্রেস হিন্ট --- */
+  .pdf-hint-box {
+    display: none;
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: #f7f4ee;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 11.5px;
+    color: #4a4a42;
+  }
+  .pdf-hint-box.show { display: block; }
+  .pdf-hint-box b { color: var(--brown-dark); }
+  .pdf-hint-box ul { margin: 3px 0 0; padding-left: 16px; }
+
+  /* --- Remarks checkboxes --- */
+  .remark-checks {
+    display: flex;
+    gap: 18px;
+    margin-top: 10px;
+    align-items: center;
+  }
+  .remark-checks label {
+    display: flex; align-items: center; gap: 6px;
+    font-weight: 500; margin: 0; font-size: 12.5px; cursor: pointer;
+  }
+  .remark-checks input[type=checkbox] { width: 15px; height: 15px; cursor: pointer; }
+
+  /* --- ইমারজেন্সি Force Override বক্স --- */
+  .force-override-box {
+    margin: 10px 0 16px;
+    padding: 10px 12px;
+    background: #fff6ea;
+    border: 1px solid #e8c88a;
+    border-radius: 8px;
+  }
+  .force-override-box label {
+    display: flex; align-items: flex-start; gap: 9px;
+    margin: 0; cursor: pointer; font-weight: 400;
+  }
+  .force-override-box input[type=checkbox] {
+    width: 16px; height: 16px; margin-top: 2px; cursor: pointer; flex-shrink: 0;
+  }
+  .force-override-box span { font-size: 11.5px; line-height: 1.5; color: #6b5a35; }
+  .force-override-box span b { color: #8a5a00; }
+  .force-override-box.active { background: #fdecec; border-color: var(--err); }
+  .force-override-box.active span b { color: var(--err); }
+
+  /* --- ফুল-পেজ ব্লকিং ওভারলে (প্রসেসিং চলাকালীন অন্য কোথাও ক্লিক আটকাতে) --- */
+  .page-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(20, 18, 12, 0.55);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .page-overlay.show { display: flex; }
+  .overlay-box {
+    background: #fff;
+    padding: 26px 34px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    max-width: 320px;
+  }
+  .spinner-lg {
+    width: 38px; height: 38px;
+    border: 4px solid rgba(122,74,44,0.2);
+    border-top-color: var(--brown);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto 14px;
+  }
+  .overlay-box p { margin: 0; font-size: 13.5px; color: var(--brown-dark); font-weight: 500; }
+
+  /* --- মডিউল কালার বার + ব্যাক লিংক (কোন মডিউলে আছি বোঝার জন্য) --- */
+  .module-bar {
+    position: fixed; top: 0; left: 0; right: 0; height: 5px;
+    background: var(--brown);
+    z-index: 10000;
+  }
+  .back-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--brown); text-decoration: none;
+    font-weight: 600; margin-bottom: 10px;
+  }
+  .back-link:hover { text-decoration: underline; }
+  .module-badge {
+    display: inline-block;
+    font-size: 10.5px; font-weight: 700;
+    letter-spacing: .05em;
+    padding: 3px 9px;
+    border-radius: 20px;
+    background: var(--brown);
+    color: #fff;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+</style>
 </head>
-
 <body>
-  <div class="module-bar"></div>
-  <div class="page-overlay" id="pageOverlay">
-    <div class="overlay-box">
-      <div class="spinner-lg"></div>
-      <p id="overlayText">Processing...</p>
+<div class="module-bar"></div>
+<div class="page-overlay" id="pageOverlay">
+  <div class="overlay-box">
+    <div class="spinner-lg"></div>
+    <p id="overlayText">Processing...</p>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <a href="/" class="back-link">← মডিউল লিস্টে ফিরে যান</a>
+    <div class="tag">Epyllion · AutoCarton <span class="module-badge">📦 Auto Carton</span></div>
+    <h1>PO থেকে Order Upload Template</h1>
+    <div class="sub">PDF আপলোড করুন — সিস্টেম নিজে থেকে ডাটা বের করে একটাই Excel ফাইল বানিয়ে দেবে</div>
+  </header>
+
+  <form id="poForm">
+    <div class="card">
+      <div class="section-title">টাইপ সিলেক্ট করুন</div>
+      <div class="grid">
+        <div class="field">
+          <label for="customer_type">Customer টাইপ</label>
+          <select id="customer_type" name="customer_type">
+            <option value="IN-HOUSE">IN-HOUSE</option>
+            <option value="OUT-HOUSE">OUT-HOUSE</option>
+          </select>
+        </div>
+        <div class="field" id="outhouseFileTypeField" style="display:none;">
+          <label>ফাইল টাইপ</label>
+          <div style="display:flex; gap:16px; margin-top:9px;">
+            <label style="font-weight:400; display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="radio" name="outhouse_file_type" value="pdf" checked> PDF
+            </label>
+            <label style="font-weight:400; display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="radio" name="outhouse_file_type" value="excel"> Excel (একাধিক ফাইল)
+            </label>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="wrap">
-    <header>
-      <a href="/" class="back-link">← মডিউল লিস্টে ফিরে যান</a>
-      <div class="tag">Epyllion · AutoCarton <span class="module-badge">📦 Auto Carton</span></div>
-      <h1>PO থেকে Order Upload Template</h1>
-      <div class="sub">PDF আপলোড করুন — সিস্টেম নিজে থেকে ডাটা বের করে একটাই Excel ফাইল বানিয়ে দেবে</div>
-    </header>
+    <div class="card" id="orderInfoCard">
+      <div class="section-title">অর্ডার তথ্য</div>
 
-    <form id="poForm">
-      <div class="card">
-        <div class="section-title">টাইপ সিলেক্ট করুন</div>
-        <div class="grid">
-          <div class="field">
-            <label for="customer_type">Customer টাইপ</label>
-            <select id="customer_type" name="customer_type">
-              <option value="IN-HOUSE">IN-HOUSE</option>
-              <option value="OUT-HOUSE">OUT-HOUSE</option>
-            </select>
+      <div class="force-override-box" id="forceOverrideBox">
+        <label>
+          <input type="checkbox" id="force_override">
+          <span><b>ইমারজেন্সি: Force Override</b> — চেক করলে Customer/Buyer নাম PDF-এর সাথে না মিললেও এরর দেখাবে না, আপনি ম্যানুয়ালি যা দিবেন সেটাই ব্যবহার হবে। (তবে এখনও আমাদের নির্দিষ্ট Customer/Buyer লিস্টের একটার সাথে হুবহু মিলতে হবে — শুধু PDF-এর সাথে মেলার শর্তটাই বাদ যাবে)</span>
+        </label>
+      </div>
+
+      <div class="grid">
+        <div class="field">
+          <label for="po_number">PO Number</label>
+          <input type="text" id="po_number" name="po_number" placeholder="ফাঁকা রাখলে PDF থেকে auto" autocomplete="off">
+          <div class="field-err" id="po_err">PO Number আপলোড করা PDF-এর সাথে মিলছে না</div>
+        </div>
+
+        <div class="field full">
+          <label for="customer_name">Customer নাম <span class="req">*</span></label>
+          <div class="combo" id="customer_combo">
+            <input type="text" id="customer_name" name="customer_name" placeholder="সার্চ করে লিস্ট থেকে সিলেক্ট করুন" autocomplete="off" required>
+            <div class="combo-panel" id="customer_panel"></div>
+            <div class="combo-clear" id="customer_clear" title="পরিবর্তন করুন">✕</div>
           </div>
-          <div class="field" id="outhouseFileTypeField" style="display:none;">
-            <label>ফাইল টাইপ</label>
-            <div style="display:flex; gap:16px; margin-top:9px;">
-              <label style="font-weight:400; display:flex; align-items:center; gap:5px; cursor:pointer;">
-                <input type="radio" name="outhouse_file_type" value="pdf" checked> PDF
-              </label>
-              <label style="font-weight:400; display:flex; align-items:center; gap:5px; cursor:pointer;">
-                <input type="radio" name="outhouse_file_type" value="excel"> Excel (একাধিক ফাইল)
-              </label>
-            </div>
+          <div class="field-err" id="customer_err">Customer নাম আবশ্যক — লিস্ট থেকে সিলেক্ট করুন</div>
+        </div>
+
+        <div class="field full">
+          <label for="buyer_name">Buyer নাম <span class="req">*</span></label>
+          <div class="combo" id="buyer_combo">
+            <input type="text" id="buyer_name" name="buyer_name" placeholder="সার্চ করে লিস্ট থেকে সিলেক্ট করুন" autocomplete="off" required>
+            <div class="combo-panel" id="buyer_panel"></div>
+            <div class="combo-clear" id="buyer_clear" title="পরিবর্তন করুন">✕</div>
+          </div>
+          <div class="field-err" id="buyer_err">Buyer নাম আবশ্যক — লিস্ট থেকে সিলেক্ট করুন</div>
+        </div>
+
+        <div class="field full" id="primarkWeightField" style="display:none;">
+          <label>Primark — Package Weight <span class="req">*</span></label>
+          <div style="display:flex; gap:16px; margin-top:9px;">
+            <label style="font-weight:400; display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="radio" name="primark_weight_class" value="ABOVE 10KG"> ABOVE 10KG
+            </label>
+            <label style="font-weight:400; display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="radio" name="primark_weight_class" value="BELOW 10KG"> BELOW 10KG
+            </label>
+          </div>
+          <div class="hint">Style No-এর সাথে এটা যোগ হয়ে বসবে (যেমন 90627/ABOVE 10KG) — Primark buyer-এর জন্য বাধ্যতামূলক</div>
+        </div>
+
+        <div class="field">
+          <label>Delivery Date</label>
+          <div class="radio-group">
+            <label><input type="radio" name="delivery_mode" value="auto" checked> Auto</label>
+            <label><input type="radio" name="delivery_mode" value="manual"> Manual</label>
+          </div>
+          <div id="manualDateWrap" style="display:none; margin-top:6px;">
+            <input type="date" id="delivery_date" name="delivery_date">
+            <div class="field-err" id="date_err">আজ থেকে ন্যূনতম ৪ দিন পরে হতে হবে</div>
+          </div>
+          <div id="autoDateHint" class="hint">আজ+৭ দিন, শুক্রবার/সরকারি ছুটি বাদে</div>
+        </div>
+
+        <div class="field">
+          <label for="delivery_address">Delivery Address <span class="req" id="addr_req_mark" style="display:none;">*</span></label>
+          <div class="combo" id="address_combo">
+            <input type="text" id="delivery_address" name="delivery_address" placeholder="আগে Customer সিলেক্ট করুন" autocomplete="off" disabled>
+            <div class="combo-panel" id="address_panel"></div>
+            <div class="combo-clear" id="address_clear" title="পরিবর্তন করুন">✕</div>
+          </div>
+          <div class="field-err" id="address_err">Delivery Address আবশ্যক — লিস্ট থেকে সিলেক্ট করুন অথবা নিজে টাইপ করুন</div>
+          <div class="hint" id="address_hint">Customer সিলেক্ট করার পর এখানে ঠিকানার লিস্ট আসবে</div>
+          <div class="pdf-hint-box" id="pdfDeliveryHint"></div>
+          <div class="remark-checks">
+            <label><input type="checkbox" id="remark_place"> Remarks-এ Delivery Place বসাও</label>
+            <label><input type="checkbox" id="remark_address"> Remarks-এ Delivery Address বসাও</label>
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="card">
-        <div class="section-title">অর্ডার তথ্য</div>
+    <div class="card" id="pdfUploadCard">
+      <div class="section-title">PDF আপলোড</div>
+      <div class="hint">শুধু EWO/Style/Ply/Measurement টেবিল-সহ এই PO ফরম্যাটই সাপোর্ট করবে</div>
 
-        <div class="force-override-box" id="forceOverrideBox">
-          <label>
-            <input type="checkbox" id="force_override">
-            <span><b>ইমারজেন্সি: Force Override</b> — চেক করলে Customer/Buyer নাম PDF-এর সাথে না মিললেও এরর দেখাবে না,
-              আপনি ম্যানুয়ালি যা দিবেন সেটাই ব্যবহার হবে। (তবে এখনও আমাদের নির্দিষ্ট Customer/Buyer লিস্টের একটার সাথে
-              হুবহু মিলতে হবে — শুধু PDF-এর সাথে মেলার শর্তটাই বাদ যাবে)</span>
-          </label>
+      <div class="drop" id="dropZone" style="margin-top:10px;">
+        <p id="dropText">এখানে PDF টেনে আনুন, বা ক্লিক করে সিলেক্ট করুন</p>
+        <p class="fname" id="fileName"></p>
+        <input type="file" id="fileInput" accept="application/pdf">
+      </div>
+    </div>
+
+    <div class="card" id="outhouseExcelCard" style="display:none;">
+      <div class="section-title">OUT-HOUSE — Excel বুকিং ফাইল (একাধিক আপলোড করা যাবে)</div>
+      <div class="hint">একই কাস্টমার/বায়ারের একাধিক বুকিং এক্সেল (.xls/.xlsx) একসাথে সিলেক্ট করুন — সবগুলো আপলোড-ক্রম অনুযায়ী কম্বাইন হয়ে একটাই Excel টেমপ্লেটে বসবে। উপরের Customer/Buyer/Delivery ফিল্ড এই Excel প্রসেসিংয়েও ব্যবহার হবে।</div>
+
+      <div class="grid" style="margin-top:10px;">
+        <div class="field">
+          <label for="outhouse_item_name">Item Name <span class="req">*</span></label>
+          <select id="outhouse_item_name" name="outhouse_item_name">
+            <option value="Master Carton">Master Carton</option>
+            <option value="Elastic Hanger Carton">Elastic Hanger Carton</option>
+            <option value="Both Side Hanger Carton">Both Side Hanger Carton</option>
+          </select>
+          <div class="hint">এক্সেল ফাইলে Item Name থাকে না, তাই এখান থেকে সিলেক্ট করে দিন</div>
         </div>
-
-        <div class="grid">
-          <div class="field">
-            <label for="po_number">PO Number</label>
-            <input type="text" id="po_number" name="po_number" placeholder="ফাঁকা রাখলে PDF থেকে auto"
-              autocomplete="off">
-            <div class="field-err" id="po_err">PO Number আপলোড করা PDF-এর সাথে মিলছে না</div>
-          </div>
-
-          <div class="field full">
-            <label for="customer_name">Customer নাম <span class="req">*</span></label>
-            <div class="combo" id="customer_combo">
-              <input type="text" id="customer_name" name="customer_name" placeholder="সার্চ করে লিস্ট থেকে সিলেক্ট করুন"
-                autocomplete="off" required>
-              <div class="combo-panel" id="customer_panel"></div>
-              <div class="combo-clear" id="customer_clear" title="পরিবর্তন করুন">✕</div>
-            </div>
-            <div class="field-err" id="customer_err">Customer নাম আবশ্যক — লিস্ট থেকে সিলেক্ট করুন</div>
-          </div>
-
-          <div class="field full">
-            <label for="buyer_name">Buyer নাম <span class="req">*</span></label>
-            <div class="combo" id="buyer_combo">
-              <input type="text" id="buyer_name" name="buyer_name" placeholder="সার্চ করে লিস্ট থেকে সিলেক্ট করুন"
-                autocomplete="off" required>
-              <div class="combo-panel" id="buyer_panel"></div>
-              <div class="combo-clear" id="buyer_clear" title="পরিবর্তন করুন">✕</div>
-            </div>
-            <div class="field-err" id="buyer_err">Buyer নাম আবশ্যক — লিস্ট থেকে সিলেক্ট করুন</div>
-          </div>
-
-          <div class="field">
-            <label>Delivery Date</label>
-            <div class="radio-group">
-              <label><input type="radio" name="delivery_mode" value="auto" checked> Auto</label>
-              <label><input type="radio" name="delivery_mode" value="manual"> Manual</label>
-            </div>
-            <div id="manualDateWrap" style="display:none; margin-top:6px;">
-              <input type="date" id="delivery_date" name="delivery_date">
-              <div class="field-err" id="date_err">আজ থেকে ন্যূনতম ৪ দিন পরে হতে হবে</div>
-            </div>
-            <div id="autoDateHint" class="hint">আজ+৭ দিন, শুক্রবার/সরকারি ছুটি বাদে</div>
-          </div>
-
-          <div class="field">
-            <label for="delivery_address">Delivery Address <span class="req" id="addr_req_mark"
-                style="display:none;">*</span></label>
-            <div class="combo" id="address_combo">
-              <input type="text" id="delivery_address" name="delivery_address" placeholder="আগে Customer সিলেক্ট করুন"
-                autocomplete="off" disabled>
-              <div class="combo-panel" id="address_panel"></div>
-              <div class="combo-clear" id="address_clear" title="পরিবর্তন করুন">✕</div>
-            </div>
-            <div class="field-err" id="address_err">Delivery Address আবশ্যক — লিস্ট থেকে সিলেক্ট করুন অথবা নিজে টাইপ
-              করুন</div>
-            <div class="hint" id="address_hint">Customer সিলেক্ট করার পর এখানে ঠিকানার লিস্ট আসবে</div>
-            <div class="pdf-hint-box" id="pdfDeliveryHint"></div>
-            <div class="remark-checks">
-              <label><input type="checkbox" id="remark_place"> Remarks-এ Delivery Place বসাও</label>
-              <label><input type="checkbox" id="remark_address"> Remarks-এ Delivery Address বসাও</label>
-            </div>
-          </div>
+        <div class="field">
+          <label for="outhouse_ply">Ply</label>
+          <select id="outhouse_ply">
+            <option value="">-- ফাইলে থাকলে সেটাই নেওয়া হবে, না থাকলে সিলেক্ট করুন --</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="5">5</option>
+            <option value="7">7</option>
+          </select>
+          <div class="hint">এক্সেলে Ply কলাম থাকলে সেটাই ব্যবহার হবে, না থাকলে এখানে সিলেক্ট করা মান বসবে — ফাঁকা রাখলে Process করার আগে একটা কনফার্মেশন আসবে</div>
         </div>
       </div>
 
-      <div class="card" id="pdfUploadCard">
-        <div class="section-title">PDF আপলোড</div>
-        <div class="hint">শুধু EWO/Style/Ply/Measurement টেবিল-সহ এই PO ফরম্যাটই সাপোর্ট করবে</div>
-
-        <div class="drop" id="dropZone" style="margin-top:10px;">
-          <p id="dropText">এখানে PDF টেনে আনুন, বা ক্লিক করে সিলেক্ট করুন</p>
-          <p class="fname" id="fileName"></p>
-          <input type="file" id="fileInput" accept="application/pdf">
-        </div>
+      <div class="drop" id="excelDropZone" style="margin-top:10px;">
+        <p id="excelDropText">এখানে একাধিক .xls/.xlsx ফাইল টেনে আনুন, বা ক্লিক করে সিলেক্ট করুন</p>
+        <p class="fname" id="excelFileNames"></p>
+        <input type="file" id="excelFileInput" accept=".xls,.xlsx" multiple>
       </div>
+      <button type="button" id="excelSubmitBtn" style="margin-top:14px;">Excel ফাইলগুলো Process করুন</button>
+      <div class="status" id="excelStatusMsg"></div>
+    </div>
 
-      <div class="card" id="outhouseExcelCard" style="display:none;">
-        <div class="section-title">OUT-HOUSE — Excel বুকিং ফাইল (একাধিক আপলোড করা যাবে)</div>
-        <div class="hint">একই কাস্টমার/বায়ারের একাধিক বুকিং এক্সেল (.xls/.xlsx) একসাথে সিলেক্ট করুন — সবগুলো আপলোড-ক্রম
-          অনুযায়ী কম্বাইন হয়ে একটাই Excel টেমপ্লেটে বসবে। উপরের Customer/Buyer/Delivery ফিল্ড এই Excel প্রসেসিংয়েও
-          ব্যবহার হবে।</div>
+    <div class="card" id="pdfSubmitCard">
+      <button type="submit" id="submitBtn">Process করে Excel ডাউনলোড করুন</button>
+      <div class="status" id="statusMsg"></div>
+    </div>
+  </form>
 
-        <div class="grid" style="margin-top:10px;">
-          <div class="field">
-            <label for="outhouse_item_name">Item Name <span class="req">*</span></label>
-            <select id="outhouse_item_name" name="outhouse_item_name">
-              <option value="Master Carton">Master Carton</option>
-              <option value="Elastic Hanger Carton">Elastic Hanger Carton</option>
-              <option value="Both Side Hanger Carton">Both Side Hanger Carton</option>
-            </select>
-            <div class="hint">এক্সেল ফাইলে Item Name থাকে না, তাই এখান থেকে সিলেক্ট করে দিন</div>
-          </div>
-          <div class="field">
-            <label for="outhouse_ply">Ply</label>
-            <select id="outhouse_ply">
-              <option value="">-- ফাইলে থাকলে সেটাই নেওয়া হবে, না থাকলে সিলেক্ট করুন --</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="5">5</option>
-              <option value="7">7</option>
-            </select>
-            <div class="hint">এক্সেলে Ply কলাম থাকলে সেটাই ব্যবহার হবে, না থাকলে এখানে সিলেক্ট করা মান বসবে — ফাঁকা
-              রাখলে Process করার আগে একটা কনফার্মেশন আসবে</div>
-          </div>
-        </div>
+  <footer>Created by Murad Hossain · Epyllion Limited</footer>
+</div>
 
-        <div class="drop" id="excelDropZone" style="margin-top:10px;">
-          <p id="excelDropText">এখানে একাধিক .xls/.xlsx ফাইল টেনে আনুন, বা ক্লিক করে সিলেক্ট করুন</p>
-          <p class="fname" id="excelFileNames"></p>
-          <input type="file" id="excelFileInput" accept=".xls,.xlsx" multiple>
-        </div>
-        <button type="button" id="excelSubmitBtn" style="margin-top:14px;">Excel ফাইলগুলো Process করুন</button>
-        <div class="status" id="excelStatusMsg"></div>
-      </div>
+<script>
+const CUSTOMERS = {{ customers | tojson }};
+const BUYERS = {{ buyers | tojson }};
+const DELIVERY_ADDRESSES = {{ delivery_addresses | tojson }};
 
-      <div class="card" id="pdfSubmitCard">
-        <button type="submit" id="submitBtn">Process করে Excel ডাউনলোড করুন</button>
-        <div class="status" id="statusMsg"></div>
-      </div>
-    </form>
+const customerTypeSel = document.getElementById('customer_type');
 
-    <footer>Created by Murad Hossain · Epyllion Limited</footer>
-  </div>
+// ---------------------------------------------------------------------
+// পুনঃব্যবহারযোগ্য সার্চেবল কম্বোবক্স: টাইপ করে ফিল্টার, ক্লিক করে সিলেক্ট,
+// সিলেক্ট করার পর ফিল্ড lock (readonly + হালকা ধূসর) হয়ে যায় — টেক্সট
+// সিলেক্ট/কপি করা যাবে কিন্তু এডিট করা যাবে না; ✕ চাপলে আবার এডিট করা যাবে।
+// ---------------------------------------------------------------------
+function setupCombo({ inputId, panelId, clearId, getOptions, onSelect, onUnlock }) {
+  const input = document.getElementById(inputId);
+  const panel = document.getElementById(panelId);
+  const clearBtn = document.getElementById(clearId);
+  const wrapper = input.closest('.combo');
 
-  <script>
-    const CUSTOMERS = {{ customers | tojson }};
-    const BUYERS = {{ buyers | tojson }};
-    const DELIVERY_ADDRESSES = {{ delivery_addresses | tojson }};
-
-    const customerTypeSel = document.getElementById('customer_type');
-
-    // ---------------------------------------------------------------------
-    // পুনঃব্যবহারযোগ্য সার্চেবল কম্বোবক্স: টাইপ করে ফিল্টার, ক্লিক করে সিলেক্ট,
-    // সিলেক্ট করার পর ফিল্ড lock (readonly + হালকা ধূসর) হয়ে যায় — টেক্সট
-    // সিলেক্ট/কপি করা যাবে কিন্তু এডিট করা যাবে না; ✕ চাপলে আবার এডিট করা যাবে।
-    // ---------------------------------------------------------------------
-    function setupCombo({ inputId, panelId, clearId, getOptions, onSelect, onUnlock }) {
-      const input = document.getElementById(inputId);
-      const panel = document.getElementById(panelId);
-      const clearBtn = document.getElementById(clearId);
-      const wrapper = input.closest('.combo');
-
-      function renderOptions(filterText) {
-        if (input.disabled) return;
-        const options = getOptions();
-        const filtered = filterText
-          ? options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()))
-          : options;
-        panel.innerHTML = '';
-        if (filtered.length === 0) {
-          panel.innerHTML = '<div class="combo-empty">কোনো মিল পাওয়া যায়নি</div>';
-        } else {
-          filtered.forEach(opt => {
-            const div = document.createElement('div');
-            div.className = 'combo-option';
-            div.textContent = opt;
-            div.addEventListener('mousedown', (e) => {
-              e.preventDefault();
-              selectValue(opt);
-            });
-            panel.appendChild(div);
-          });
-        }
-        panel.classList.add('open');
-      }
-
-      function selectValue(value) {
-        input.value = value;
-        lockField();
-        panel.classList.remove('open');
-        if (onSelect) onSelect(value);
-      }
-
-      function lockField() {
-        input.readOnly = true;
-        input.classList.add('locked');
-        wrapper.classList.add('has-clear');
-      }
-
-      function unlock() {
-        input.readOnly = false;
-        input.classList.remove('locked');
-        input.value = '';
-        wrapper.classList.remove('has-clear');
-        panel.classList.remove('open');
-        if (onUnlock) onUnlock();
-        if (!input.disabled) input.focus();
-      }
-
-      input.addEventListener('focus', () => { if (!input.readOnly) renderOptions(input.value); });
-      input.addEventListener('input', () => renderOptions(input.value));
-      input.addEventListener('blur', () => setTimeout(() => panel.classList.remove('open'), 150));
-      clearBtn.addEventListener('click', unlock);
-
-      return { renderOptions, selectValue, unlock };
-    }
-
-    // --- Customer combo ---
-    const customerCombo = setupCombo({
-      inputId: 'customer_name', panelId: 'customer_panel', clearId: 'customer_clear',
-      getOptions: () => CUSTOMERS[customerTypeSel.value] || [],
-      onSelect: (value) => { refreshAddressOptions(value); },
-      onUnlock: () => { addressCombo.unlock(); disableAddressField(true); },
-    });
-
-    const outhouseExcelCard = document.getElementById('outhouseExcelCard');
-    const pdfUploadCard = document.getElementById('pdfUploadCard');
-    const pdfSubmitCard = document.getElementById('pdfSubmitCard');
-    const outhouseFileTypeField = document.getElementById('outhouseFileTypeField');
-
-    function getOuthouseFileType() {
-      const checked = document.querySelector('input[name="outhouse_file_type"]:checked');
-      return checked ? checked.value : 'pdf';
-    }
-
-    // আপাতত OUT-HOUSE-এর জন্য একটাই PDF ফরম্যাট (Trims Booking) সাপোর্ট করা হয়,
-    // তাই ম্যানুয়ালি ফরম্যাট বেছে নেওয়ার দরকার নেই — Customer টাইপ + ফাইল টাইপ
-    // থেকেই এটা অটোমেটিক ঠিক হয়ে যায়। ভবিষ্যতে দ্বিতীয় কোনো OUT-HOUSE PDF
-    // ফরম্যাট এলে, এখানে Customer/Buyer সিলেকশন অনুযায়ী ডিটেক্ট করার লজিক যোগ হবে।
-    function isTrimsBookingMode() {
-      return customerTypeSel.value === 'OUT-HOUSE' && getOuthouseFileType() === 'pdf';
-    }
-
-    function toggleOuthouseExcelCard() {
-      const isOuthouse = customerTypeSel.value === 'OUT-HOUSE';
-      outhouseFileTypeField.style.display = isOuthouse ? 'block' : 'none';
-
-      const useExcel = isOuthouse && getOuthouseFileType() === 'excel';
-      outhouseExcelCard.style.display = useExcel ? 'block' : 'none';
-      pdfUploadCard.style.display = useExcel ? 'none' : 'block';
-      pdfSubmitCard.style.display = useExcel ? 'none' : 'block';
-      submitBtn.disabled = useExcel;
-    }
-
-    document.querySelectorAll('input[name="outhouse_file_type"]').forEach(radio => {
-      radio.addEventListener('change', toggleOuthouseExcelCard);
-    });
-
-    customerTypeSel.addEventListener('change', () => {
-      customerCombo.unlock();
-      addressCombo.unlock();
-      disableAddressField(true);
-      toggleOuthouseExcelCard();
-    });
-
-    // --- Buyer combo ---
-    const buyerCombo = setupCombo({
-      inputId: 'buyer_name', panelId: 'buyer_panel', clearId: 'buyer_clear',
-      getOptions: () => BUYERS,
-    });
-
-    // --- Delivery Address combo (customer-অনুযায়ী ফিল্টার) ---
-    const addressInput = document.getElementById('delivery_address');
-    const addressReqMark = document.getElementById('addr_req_mark');
-    const addressHint = document.getElementById('address_hint');
-    const pdfDeliveryHint = document.getElementById('pdfDeliveryHint');
-
-    function disableAddressField(disabled) {
-      addressInput.disabled = disabled;
-      addressInput.placeholder = disabled ? 'আগে Customer সিলেক্ট করুন' : 'লিস্ট থেকে বাছুন অথবা নিজে ঠিকানা লিখুন';
-    }
-
-    function refreshAddressOptions(customerName) {
-      const addresses = DELIVERY_ADDRESSES[customerName] || [];
-      disableAddressField(false);  // Customer সিলেক্ট হয়ে গেছে — এখন ঠিকানা লেখা/বাছা যাবে
-      addressReqMark.style.display = addresses.length > 0 ? 'inline' : 'none';
-      addressHint.textContent = addresses.length > 0
-        ? `${customerName}-এর জন্য ${addresses.length}টা ঠিকানা পাওয়া গেছে, অথবা নিজে নতুন ঠিকানা লিখতে পারবেন`
-        : 'এই Customer-এর জন্য এখনো কোনো ঠিকানা লিস্ট করা নেই — চাইলে নিজে টাইপ করে দিন (আবশ্যক না)';
-    }
-
-    const addressCombo = setupCombo({
-      inputId: 'delivery_address', panelId: 'address_panel', clearId: 'address_clear',
-      getOptions: () => DELIVERY_ADDRESSES[document.getElementById('customer_name').value] || [],
-    });
-
-    // --- Delivery date mode toggle + minimum-date enforcement ---
-    const manualDateWrap = document.getElementById('manualDateWrap');
-    const autoDateHint = document.getElementById('autoDateHint');
-    const deliveryDateInput = document.getElementById('delivery_date');
-    const minAllowedDate = new Date();
-    minAllowedDate.setDate(minAllowedDate.getDate() + 4);
-    const minDateStr = minAllowedDate.toISOString().split('T')[0];
-    deliveryDateInput.min = minDateStr;
-
-    document.querySelectorAll('input[name="delivery_mode"]').forEach(radio => {
-      radio.addEventListener('change', () => {
-        const manual = document.querySelector('input[name="delivery_mode"]:checked').value === 'manual';
-        manualDateWrap.style.display = manual ? 'block' : 'none';
-        autoDateHint.style.display = manual ? 'none' : 'block';
+  function renderOptions(filterText) {
+    if (input.disabled) return;
+    const options = getOptions();
+    const filtered = filterText
+      ? options.filter(o => o.toLowerCase().includes(filterText.toLowerCase()))
+      : options;
+    panel.innerHTML = '';
+    if (filtered.length === 0) {
+      panel.innerHTML = '<div class="combo-empty">কোনো মিল পাওয়া যায়নি</div>';
+    } else {
+      filtered.forEach(opt => {
+        const div = document.createElement('div');
+        div.className = 'combo-option';
+        div.textContent = opt;
+        div.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          selectValue(opt);
+        });
+        panel.appendChild(div);
       });
-    });
-
-    // --- File drop zone ---
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const fileName = document.getElementById('fileName');
-    const dropText = document.getElementById('dropText');
-    const form = document.getElementById('poForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const statusMsg = document.getElementById('statusMsg');
-
-    // --- ফুল-পেজ ব্লকিং ওভারলে: প্রসেসিং চলাকালীন পুরো পেজ ডার্ক হয়ে যাবে এবং
-    // পিছনের কোনো ফিল্ড/বাটনে ক্লিক করা যাবে না, যতক্ষণ না রেসপন্স আসে ---
-    const pageOverlay = document.getElementById('pageOverlay');
-    const overlayText = document.getElementById('overlayText');
-    function showOverlay(text) {
-      overlayText.textContent = text || 'Processing...';
-      pageOverlay.classList.add('show');
     }
-    function hideOverlay() {
-      pageOverlay.classList.remove('show');
-    }
+    panel.classList.add('open');
+  }
 
-    // --- Force Override checkbox: চেক করলে বক্সটা লাল হয়ে ইমারজেন্সি-মোড বোঝাবে ---
-    const forceOverrideBox = document.getElementById('forceOverrideBox');
-    const forceOverrideCheck = document.getElementById('force_override');
-    forceOverrideCheck.addEventListener('change', () => {
-      forceOverrideBox.classList.toggle('active', forceOverrideCheck.checked);
-    });
+  function selectValue(value) {
+    input.value = value;
+    lockField();
+    panel.classList.remove('open');
+    if (onSelect) onSelect(value);
+  }
 
-    dropZone.addEventListener('click', () => fileInput.click());
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('drag');
-      if (e.dataTransfer.files.length) {
-        fileInput.files = e.dataTransfer.files;
-        updateFileName();
-        extractAndAutofill(fileInput.files[0]);
-      }
-    });
-    fileInput.addEventListener('change', () => {
-      updateFileName();
-      if (fileInput.files.length) extractAndAutofill(fileInput.files[0]);
-    });
+  function lockField() {
+    input.readOnly = true;
+    input.classList.add('locked');
+    wrapper.classList.add('has-clear');
+  }
 
-    function updateFileName() {
-      if (fileInput.files.length) {
-        fileName.textContent = fileInput.files[0].name;
-        dropText.textContent = 'ফাইল সিলেক্ট হয়েছে:';
-      }
-    }
+  function unlock() {
+    input.readOnly = false;
+    input.classList.remove('locked');
+    input.value = '';
+    wrapper.classList.remove('has-clear');
+    panel.classList.remove('open');
+    if (onUnlock) onUnlock();
+    if (!input.disabled) input.focus();
+  }
 
-    // ---------------------------------------------------------------------
-    // PDF আপলোডের সাথে সাথেই (সাবমিটের আগেই) সার্ভার থেকে PO Number/Customer/
-    // Buyer বের করে নিয়ে, আমাদের নিজস্ব লিস্টের (config.py) সাথে case-insensitive
-    // মিলিয়ে — মিল পেলে আমাদের সিস্টেমে যেই ক্যানোনিকাল নামটা সেভ করা আছে
-    // (case ঠিক রেখে) সেটাই ফিল্ডে বসিয়ে lock করে দেয়। Delivery Address কখনোই
-    // অটো-ফিল হয় না, ইউজারকে নিজে থেকেই লিস্ট থেকে বাছতে হবে।
-    // ---------------------------------------------------------------------
-    function normalizeMatch(s) {
-      return (s || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
-    }
+  input.addEventListener('focus', () => { if (!input.readOnly) renderOptions(input.value); });
+  input.addEventListener('input', () => renderOptions(input.value));
+  input.addEventListener('blur', () => setTimeout(() => panel.classList.remove('open'), 150));
+  clearBtn.addEventListener('click', unlock);
 
-    function findCaseInsensitiveMatch(value, list) {
-      if (!value) return null;
-      const norm = normalizeMatch(value);
-      return (list || []).find(item => normalizeMatch(item) === norm) || null;
-    }
+  return { renderOptions, selectValue, unlock };
+}
 
-    async function extractAndAutofill(file) {
-      // নতুন PDF এলে আগের অটো-ফিল করা অবস্থা রিসেট করে শুরু করা হয়
-      customerCombo.unlock();
-      buyerCombo.unlock();
-      addressCombo.unlock();
-      disableAddressField(true);
-      addressReqMark.style.display = 'none';
-      addressHint.textContent = 'Customer সিলেক্ট করার পর এখানে ঠিকানার লিস্ট আসবে';
-      document.getElementById('po_number').value = '';
+// --- Customer combo ---
+const customerCombo = setupCombo({
+  inputId: 'customer_name', panelId: 'customer_panel', clearId: 'customer_clear',
+  getOptions: () => CUSTOMERS[customerTypeSel.value] || [],
+  onSelect: (value) => { refreshAddressOptions(value); },
+  onUnlock: () => { addressCombo.unlock(); disableAddressField(true); },
+});
 
-      pdfDeliveryHint.classList.remove('show');
-      pdfDeliveryHint.innerHTML = '';
-      statusMsg.innerHTML = '<span class="spinner"></span>PDF থেকে PO/Customer/Buyer তথ্য বের করা হচ্ছে...';
-      statusMsg.className = 'status loading';
-      showOverlay('PDF থেকে PO/Customer/Buyer তথ্য বের করা হচ্ছে...');
+const outhouseExcelCard = document.getElementById('outhouseExcelCard');
+const pdfUploadCard = document.getElementById('pdfUploadCard');
+const pdfSubmitCard = document.getElementById('pdfSubmitCard');
+const outhouseFileTypeField = document.getElementById('outhouseFileTypeField');
 
-      try {
-        const fd = new FormData();
-        fd.append('pdf_file', file);
-        const extractEndpoint = isTrimsBookingMode() ? '/autocarton/extract_header_outhouse_pdf' : '/extract_header';
-        const res = await fetch(extractEndpoint, { method: 'POST', body: fd });
-        const data = await res.json();
+function getOuthouseFileType() {
+  const checked = document.querySelector('input[name="outhouse_file_type"]:checked');
+  return checked ? checked.value : 'pdf';
+}
 
-        if (!res.ok) {
-          statusMsg.textContent = (data.error || 'PDF থেকে তথ্য বের করা যায়নি') + ' — নিচের ফিল্ডগুলো ম্যানুয়ালি পূরণ করুন';
-          statusMsg.className = 'status err';
-          return;
-        }
+// আপাতত OUT-HOUSE-এর জন্য একটাই PDF ফরম্যাট (Trims Booking) সাপোর্ট করা হয়,
+// তাই ম্যানুয়ালি ফরম্যাট বেছে নেওয়ার দরকার নেই — Customer টাইপ + ফাইল টাইপ
+// থেকেই এটা অটোমেটিক ঠিক হয়ে যায়। ভবিষ্যতে দ্বিতীয় কোনো OUT-HOUSE PDF
+// ফরম্যাট এলে, এখানে Customer/Buyer সিলেকশন অনুযায়ী ডিটেক্ট করার লজিক যোগ হবে।
+function isTrimsBookingMode() {
+  return customerTypeSel.value === 'OUT-HOUSE' && getOuthouseFileType() === 'pdf';
+}
 
-        // --- PDF-এ পাওয়া Delivery Place/Address ভ্যালুগুলো হিন্ট হিসেবে দেখানো ---
-        const places = data.delivery_places_pdf || [];
-        const addrs = data.delivery_addresses_pdf || [];
-        if (places.length || addrs.length) {
-          let html = '';
-          if (places.length) html += `<div><b>PDF-এ Delivery Place${places.length > 1 ? ' (একাধিক)' : ''}:</b><ul>${places.map(p => `<li>${p}</li>`).join('')}</ul></div>`;
-          if (addrs.length) html += `<div><b>PDF-এ Delivery Address${addrs.length > 1 ? ' (একাধিক)' : ''}:</b><ul>${addrs.map(a => `<li>${a}</li>`).join('')}</ul></div>`;
-          pdfDeliveryHint.innerHTML = html;
-          pdfDeliveryHint.classList.add('show');
-        }
+function toggleOuthouseExcelCard() {
+  const isOuthouse = customerTypeSel.value === 'OUT-HOUSE';
+  outhouseFileTypeField.style.display = isOuthouse ? 'block' : 'none';
 
-        // --- Customer: IN-HOUSE/OUT-HOUSE দুই লিস্টেই case-insensitive খোঁজা হয় ---
-        let matchedType = null, matchedCustomer = null;
-        for (const type of Object.keys(CUSTOMERS)) {
-          const m = findCaseInsensitiveMatch(data.customer, CUSTOMERS[type]);
-          if (m) { matchedType = type; matchedCustomer = m; break; }
-        }
-        if (matchedCustomer) {
-          customerTypeSel.value = matchedType;
-          customerCombo.selectValue(matchedCustomer);   // এটাই refreshAddressOptions() ট্রিগার করবে
-        } else if (data.customer) {
-          // ফিক্সড লিস্টে মিল পাওয়া যায়নি (সাধারণত OUT-HOUSE-এর ক্ষেত্রে হবে) —
-          // PDF-এর নামটাই বসিয়ে দেওয়া হলো, কিন্তু আনলকড থাকবে যাতে দরকার হলে ঠিক করা যায়
-          document.getElementById('customer_name').value = data.customer;
-          refreshAddressOptions(data.customer);
-        }
+  const useExcel = isOuthouse && getOuthouseFileType() === 'excel';
+  outhouseExcelCard.style.display = useExcel ? 'block' : 'none';
+  pdfUploadCard.style.display = useExcel ? 'none' : 'block';
+  pdfSubmitCard.style.display = useExcel ? 'none' : 'block';
+  submitBtn.disabled = useExcel;
 
-        // --- Buyer: ফিক্সড লিস্টের সাথে case-insensitive মিল ---
-        const matchedBuyer = findCaseInsensitiveMatch(data.buyer, BUYERS);
-        if (matchedBuyer) {
-          buyerCombo.selectValue(matchedBuyer);
-        } else if (data.buyer) {
-          document.getElementById('buyer_name').value = data.buyer;
-        }
+  // OUT-HOUSE + PDF মোডে: যেহেতু PDF থেকেই Customer/Buyer/PO সব অটো নেওয়া
+  // যায়, তাই আপলোড বক্সটা আগে দেখানো হচ্ছে, তারপর Order তথ্য (auto-fill
+  // হয়ে যাবে)। বাকি সব মোডে (Excel / IN-HOUSE) আগের মতোই Order তথ্য আগে।
+  const orderInfoCard = document.getElementById('orderInfoCard');
+  const pdfOnlyMode = isOuthouse && !useExcel;
+  if (pdfOnlyMode) {
+    form.appendChild(pdfUploadCard);
+    form.appendChild(orderInfoCard);
+  } else {
+    form.appendChild(orderInfoCard);
+    form.appendChild(pdfUploadCard);
+    form.appendChild(outhouseExcelCard);
+  }
+  form.appendChild(pdfSubmitCard);  // "Process করে Excel ডাউনলোড করুন" সবসময় সবার নিচে
+}
 
-        // --- PO Number: সরাসরি বসিয়ে দেওয়া হলো, এডিটযোগ্য থাকবে ---
-        if (data.po_number) {
-          document.getElementById('po_number').value = data.po_number;
-        }
+document.querySelectorAll('input[name="outhouse_file_type"]').forEach(radio => {
+  radio.addEventListener('change', toggleOuthouseExcelCard);
+});
 
-        const custOk = !!matchedCustomer;
-        const buyerOk = !!matchedBuyer;
-        if (custOk && buyerOk) {
-          statusMsg.textContent = 'Customer ও Buyer অটোমেটিক বসানো হয়েছে — এখন Delivery Address সিলেক্ট করে Process করুন';
-          statusMsg.className = 'status ok';
-        } else {
-          statusMsg.textContent = 'কিছু তথ্য (Customer/Buyer) আমাদের লিস্টে সরাসরি মেলেনি — লাল দেখানো ফিল্ডগুলো ম্যানুয়ালি চেক করে সিলেক্ট করুন';
-          statusMsg.className = 'status err';
-        }
-      } catch (err) {
-        statusMsg.textContent = 'PDF থেকে তথ্য বের করতে সমস্যা হয়েছে — নিচের ফিল্ডগুলো ম্যানুয়ালি পূরণ করুন';
-        statusMsg.className = 'status err';
-      } finally {
-        hideOverlay();
-      }
-    }
+customerTypeSel.addEventListener('change', () => {
+  customerCombo.unlock();
+  addressCombo.unlock();
+  disableAddressField(true);
+  toggleOuthouseExcelCard();
+});
 
-    // --- Validation ---
-    const customerErr = document.getElementById('customer_err');
-    const buyerErr = document.getElementById('buyer_err');
-    const dateErr = document.getElementById('date_err');
-    const addressErr = document.getElementById('address_err');
-    const poErr = document.getElementById('po_err');
+// --- Buyer combo ---
+const buyerCombo = setupCombo({
+  inputId: 'buyer_name', panelId: 'buyer_panel', clearId: 'buyer_clear',
+  getOptions: () => BUYERS,
+});
 
-    function resetForm() {
-      customerCombo.unlock();
-      buyerCombo.unlock();
-      addressCombo.unlock();
-      disableAddressField(true);
-      addressReqMark.style.display = 'none';
-      addressHint.textContent = 'Customer সিলেক্ট করার পর এখানে ঠিকানার লিস্ট আসবে';
-      document.getElementById('po_number').value = '';
-      customerTypeSel.value = 'IN-HOUSE';
-      document.querySelector('input[name="delivery_mode"][value="auto"]').checked = true;
-      manualDateWrap.style.display = 'none';
-      autoDateHint.style.display = 'block';
-      deliveryDateInput.value = '';
-      fileInput.value = '';
-      fileName.textContent = '';
-      dropText.textContent = 'এখানে PDF টেনে আনুন, বা ক্লিক করে সিলেক্ট করুন';
-      document.getElementById('remark_place').checked = false;
-      document.getElementById('remark_address').checked = false;
-      forceOverrideCheck.checked = false;
-      forceOverrideBox.classList.remove('active');
-      pdfDeliveryHint.classList.remove('show');
-      pdfDeliveryHint.innerHTML = '';
-      [customerErr, buyerErr, dateErr, addressErr, poErr].forEach(el => el.style.display = 'none');
-    }
+// --- Primark-এর জন্য স্পেশাল Package Weight সিলেক্টর — Buyer 'Primark' হলেই দেখাবে ---
+const primarkWeightField = document.getElementById('primarkWeightField');
+const buyerNameInput = document.getElementById('buyer_name');
 
-    function clientSideValidate() {
-      let ok = true;
-      [customerErr, buyerErr, dateErr, addressErr].forEach(el => el.style.display = 'none');
+function isPrimarkBuyer() {
+  return buyerNameInput.value.trim().toLowerCase() === 'primark';
+}
 
-      const custType = customerTypeSel.value;
-      const custName = document.getElementById('customer_name').value.trim();
-      const custList = CUSTOMERS[custType] || [];
-      if (!custName || (custList.length && !custList.includes(custName))) {
-        customerErr.style.display = 'block';
-        ok = false;
-      }
+function togglePrimarkWeightField() {
+  primarkWeightField.style.display = isPrimarkBuyer() ? 'block' : 'none';
+}
 
-      const buyerName = document.getElementById('buyer_name').value.trim();
-      if (!buyerName || !BUYERS.includes(buyerName)) {
-        buyerErr.style.display = 'block';
-        ok = false;
-      }
+function getPrimarkWeightClass() {
+  const checked = document.querySelector('input[name="primark_weight_class"]:checked');
+  return checked ? checked.value : '';
+}
 
-      const addresses = DELIVERY_ADDRESSES[custName] || [];
-      const addrVal = addressInput.value.trim();
-      if (addresses.length > 0 && !addrVal) {
-        addressErr.style.display = 'block';
-        ok = false;
-        window.alert(
-          '⚠️ Delivery Address ফাঁকা আছে!\n' +
-          'এটা সিলেক্ট না করে Process করা যাবে না।\n' +
-          'দয়া করে ড্রপডাউন থেকে সঠিক ডেলিভারি ঠিকানাটা বেছে নিন।'
-        );
-        addressInput.focus();
-      }
+buyerNameInput.addEventListener('input', togglePrimarkWeightField);
+buyerNameInput.addEventListener('change', togglePrimarkWeightField);
 
-      const mode = document.querySelector('input[name="delivery_mode"]:checked').value;
-      if (mode === 'manual') {
-        if (!deliveryDateInput.value || deliveryDateInput.value < minDateStr) {
-          dateErr.style.display = 'block';
-          ok = false;
-        }
-      }
-      return ok;
-    }
+// --- Delivery Address combo (customer-অনুযায়ী ফিল্টার) ---
+const addressInput = document.getElementById('delivery_address');
+const addressReqMark = document.getElementById('addr_req_mark');
+const addressHint = document.getElementById('address_hint');
+const pdfDeliveryHint = document.getElementById('pdfDeliveryHint');
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!fileInput.files.length) {
-        statusMsg.textContent = 'প্রথমে একটা PDF ফাইল সিলেক্ট করুন';
-        statusMsg.className = 'status err';
-        return;
-      }
-      if (!clientSideValidate()) {
-        statusMsg.textContent = 'উপরের ফিল্ডগুলো ঠিক করুন (লাল দেখানো জায়গাগুলো)';
-        statusMsg.className = 'status err';
-        return;
-      }
+function disableAddressField(disabled) {
+  addressInput.disabled = disabled;
+  addressInput.placeholder = disabled ? 'আগে Customer সিলেক্ট করুন' : 'লিস্ট থেকে বাছুন অথবা নিজে ঠিকানা লিখুন';
+}
 
-      const trimsBookingMode = isTrimsBookingMode();
+function refreshAddressOptions(customerName) {
+  const addresses = DELIVERY_ADDRESSES[customerName] || [];
+  disableAddressField(false);  // Customer সিলেক্ট হয়ে গেছে — এখন ঠিকানা লেখা/বাছা যাবে
+  addressReqMark.style.display = addresses.length > 0 ? 'inline' : 'none';
+  addressHint.textContent = addresses.length > 0
+    ? `${customerName}-এর জন্য ${addresses.length}টা ঠিকানা পাওয়া গেছে, অথবা নিজে নতুন ঠিকানা লিখতে পারবেন`
+    : 'এই Customer-এর জন্য এখনো কোনো ঠিকানা লিস্ট করা নেই — চাইলে নিজে টাইপ করে দিন (আবশ্যক না)';
+}
 
-      const formData = new FormData();
-      if (trimsBookingMode) {
-        // Trims Booking (Barnali-স্টাইল) ফরম্যাট — আলাদা এন্ডপয়েন্ট, PDF-হেডার
-        // ম্যাচিং/method/remarks এখানে প্রযোজ্য না (Item Name/Ply PDF থেকেই
-        // প্রতি রো-তে অটোমেটিক ঠিক হয়ে যায়)
-        formData.append('files', fileInput.files[0]);
-      } else {
-        formData.append('pdf_file', fileInput.files[0]);
-      }
-      formData.append('customer_type', customerTypeSel.value);
-      formData.append('customer_name', document.getElementById('customer_name').value.trim());
-      formData.append('buyer_name', document.getElementById('buyer_name').value.trim());
-      formData.append('po_number', document.getElementById('po_number').value.trim());
-      formData.append('delivery_mode', document.querySelector('input[name="delivery_mode"]:checked').value);
-      formData.append('delivery_date', deliveryDateInput.value);
-      formData.append('delivery_address', addressInput.value.trim());
-      if (!trimsBookingMode) {
-        formData.append('method', 'rule_based');
-        formData.append('remark_place', document.getElementById('remark_place').checked ? '1' : '');
-        formData.append('remark_address', document.getElementById('remark_address').checked ? '1' : '');
-        formData.append('force_override', forceOverrideCheck.checked ? '1' : '');
-      }
+const addressCombo = setupCombo({
+  inputId: 'delivery_address', panelId: 'address_panel', clearId: 'address_clear',
+  getOptions: () => DELIVERY_ADDRESSES[document.getElementById('customer_name').value] || [],
+});
 
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner"></span>Processing...';
-      statusMsg.innerHTML = '<span class="spinner"></span>Excel ফাইল তৈরি হচ্ছে, একটু অপেক্ষা করুন...';
-      statusMsg.className = 'status loading';
-      showOverlay('Excel ফাইল তৈরি হচ্ছে, একটু অপেক্ষা করুন...');
+// --- Delivery date mode toggle + minimum-date enforcement ---
+const manualDateWrap = document.getElementById('manualDateWrap');
+const autoDateHint = document.getElementById('autoDateHint');
+const deliveryDateInput = document.getElementById('delivery_date');
+const minAllowedDate = new Date();
+minAllowedDate.setDate(minAllowedDate.getDate() + 4);
+const minDateStr = minAllowedDate.toISOString().split('T')[0];
+deliveryDateInput.min = minDateStr;
 
-      try {
-        const endpoint = trimsBookingMode ? '/autocarton/process_outhouse_trims_booking_pdf' : '/process';
-        const res = await fetch(endpoint, { method: 'POST', body: formData });
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || 'কিছু একটা সমস্যা হয়েছে');
-        }
-        const warnCount = parseInt(res.headers.get('X-Warning-Count') || '0');
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileInput.files[0].name.replace('.pdf', '').replace('.PDF', '') + '_Output.xlsx';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        let msg = 'সম্পন্ন হয়েছে — Excel ফাইল ডাউনলোড হচ্ছে';
-        if (warnCount > 0) msg += ` — ⚠️ ${warnCount}টা রো-তে জরুরি তথ্য মিসিং, Excel-এর "Warnings" শীট দেখুন`;
-        statusMsg.textContent = msg;
-        statusMsg.className = warnCount > 0 ? 'status err' : 'status ok';
-        resetForm();
-      } catch (err) {
-        statusMsg.textContent = err.message;
-        statusMsg.className = 'status err';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = 'Process করে Excel ডাউনলোড করুন';
-        hideOverlay();
-      }
-    });
+document.querySelectorAll('input[name="delivery_mode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const manual = document.querySelector('input[name="delivery_mode"]:checked').value === 'manual';
+    manualDateWrap.style.display = manual ? 'block' : 'none';
+    autoDateHint.style.display = manual ? 'none' : 'block';
+  });
+});
 
-    // ============================================================
-    // OUT-HOUSE Excel বুকিং ফাইল (একাধিক) — আলাদা ফ্লো, /autocarton/process_outhouse_excel
-    // ============================================================
-    const excelDropZone = document.getElementById('excelDropZone');
-    const excelFileInput = document.getElementById('excelFileInput');
-    const excelFileNames = document.getElementById('excelFileNames');
-    const excelSubmitBtn = document.getElementById('excelSubmitBtn');
-    const excelStatusMsg = document.getElementById('excelStatusMsg');
+// --- File drop zone ---
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const dropText = document.getElementById('dropText');
+const form = document.getElementById('poForm');
+const submitBtn = document.getElementById('submitBtn');
+const statusMsg = document.getElementById('statusMsg');
 
-    function updateExcelFileNamesLabel() {
-      const files = excelFileInput.files;
-      if (!files || !files.length) {
-        excelFileNames.textContent = '';
-        return;
-      }
-      const names = Array.from(files).map(f => f.name);
-      excelFileNames.textContent = `${files.length}টা ফাইল সিলেক্ট করা হয়েছে: ${names.join(', ')}`;
+// --- ফুল-পেজ ব্লকিং ওভারলে: প্রসেসিং চলাকালীন পুরো পেজ ডার্ক হয়ে যাবে এবং
+// পিছনের কোনো ফিল্ড/বাটনে ক্লিক করা যাবে না, যতক্ষণ না রেসপন্স আসে ---
+const pageOverlay = document.getElementById('pageOverlay');
+const overlayText = document.getElementById('overlayText');
+function showOverlay(text) {
+  overlayText.textContent = text || 'Processing...';
+  pageOverlay.classList.add('show');
+}
+function hideOverlay() {
+  pageOverlay.classList.remove('show');
+}
+
+// --- Force Override checkbox: চেক করলে বক্সটা লাল হয়ে ইমারজেন্সি-মোড বোঝাবে ---
+const forceOverrideBox = document.getElementById('forceOverrideBox');
+const forceOverrideCheck = document.getElementById('force_override');
+forceOverrideCheck.addEventListener('change', () => {
+  forceOverrideBox.classList.toggle('active', forceOverrideCheck.checked);
+});
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  if (e.dataTransfer.files.length) {
+    fileInput.files = e.dataTransfer.files;
+    updateFileName();
+    extractAndAutofill(fileInput.files[0]);
+  }
+});
+fileInput.addEventListener('change', () => {
+  updateFileName();
+  if (fileInput.files.length) extractAndAutofill(fileInput.files[0]);
+});
+
+function updateFileName() {
+  if (fileInput.files.length) {
+    fileName.textContent = fileInput.files[0].name;
+    dropText.textContent = 'ফাইল সিলেক্ট হয়েছে:';
+  }
+}
+
+// ---------------------------------------------------------------------
+// PDF আপলোডের সাথে সাথেই (সাবমিটের আগেই) সার্ভার থেকে PO Number/Customer/
+// Buyer বের করে নিয়ে, আমাদের নিজস্ব লিস্টের (config.py) সাথে case-insensitive
+// মিলিয়ে — মিল পেলে আমাদের সিস্টেমে যেই ক্যানোনিকাল নামটা সেভ করা আছে
+// (case ঠিক রেখে) সেটাই ফিল্ডে বসিয়ে lock করে দেয়। Delivery Address কখনোই
+// অটো-ফিল হয় না, ইউজারকে নিজে থেকেই লিস্ট থেকে বাছতে হবে।
+// ---------------------------------------------------------------------
+function normalizeMatch(s) {
+  return (s || '').toString().replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function findCaseInsensitiveMatch(value, list) {
+  if (!value) return null;
+  const norm = normalizeMatch(value);
+  return (list || []).find(item => normalizeMatch(item) === norm) || null;
+}
+
+async function extractAndAutofill(file) {
+  // নতুন PDF এলে আগের অটো-ফিল করা অবস্থা রিসেট করে শুরু করা হয়
+  customerCombo.unlock();
+  buyerCombo.unlock();
+  addressCombo.unlock();
+  disableAddressField(true);
+  addressReqMark.style.display = 'none';
+  addressHint.textContent = 'Customer সিলেক্ট করার পর এখানে ঠিকানার লিস্ট আসবে';
+  document.getElementById('po_number').value = '';
+
+  pdfDeliveryHint.classList.remove('show');
+  pdfDeliveryHint.innerHTML = '';
+  statusMsg.innerHTML = '<span class="spinner"></span>PDF থেকে PO/Customer/Buyer তথ্য বের করা হচ্ছে...';
+  statusMsg.className = 'status loading';
+  showOverlay('PDF থেকে PO/Customer/Buyer তথ্য বের করা হচ্ছে...');
+
+  try {
+    const fd = new FormData();
+    fd.append('pdf_file', file);
+    const extractEndpoint = isTrimsBookingMode() ? '/autocarton/extract_header_outhouse_pdf' : '/extract_header';
+    const res = await fetch(extractEndpoint, { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!res.ok) {
+      statusMsg.textContent = (data.error || 'PDF থেকে তথ্য বের করা যায়নি') + ' — নিচের ফিল্ডগুলো ম্যানুয়ালি পূরণ করুন';
+      statusMsg.className = 'status err';
+      return;
     }
 
-    excelDropZone.addEventListener('click', () => excelFileInput.click());
-    excelDropZone.addEventListener('dragover', e => { e.preventDefault(); excelDropZone.classList.add('drag'); });
-    excelDropZone.addEventListener('dragleave', () => excelDropZone.classList.remove('drag'));
-    excelDropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      excelDropZone.classList.remove('drag');
-      if (e.dataTransfer.files.length) {
-        excelFileInput.files = e.dataTransfer.files;
-        updateExcelFileNamesLabel();
-      }
-    });
-    excelFileInput.addEventListener('change', updateExcelFileNamesLabel);
+    // --- PDF-এ পাওয়া Delivery Place/Address ভ্যালুগুলো হিন্ট হিসেবে দেখানো ---
+    const places = data.delivery_places_pdf || [];
+    const addrs = data.delivery_addresses_pdf || [];
+    if (places.length || addrs.length) {
+      let html = '';
+      if (places.length) html += `<div><b>PDF-এ Delivery Place${places.length > 1 ? ' (একাধিক)' : ''}:</b><ul>${places.map(p => `<li>${p}</li>`).join('')}</ul></div>`;
+      if (addrs.length) html += `<div><b>PDF-এ Delivery Address${addrs.length > 1 ? ' (একাধিক)' : ''}:</b><ul>${addrs.map(a => `<li>${a}</li>`).join('')}</ul></div>`;
+      pdfDeliveryHint.innerHTML = html;
+      pdfDeliveryHint.classList.add('show');
+    }
 
-    excelSubmitBtn.addEventListener('click', async () => {
-      excelStatusMsg.textContent = '';
-      excelStatusMsg.className = 'status';
+    // --- Customer: IN-HOUSE/OUT-HOUSE দুই লিস্টেই case-insensitive খোঁজা হয় ---
+    let matchedType = null, matchedCustomer = null;
+    for (const type of Object.keys(CUSTOMERS)) {
+      const m = findCaseInsensitiveMatch(data.customer, CUSTOMERS[type]);
+      if (m) { matchedType = type; matchedCustomer = m; break; }
+    }
+    if (matchedCustomer) {
+      customerTypeSel.value = matchedType;
+      customerCombo.selectValue(matchedCustomer);   // এটাই refreshAddressOptions() ট্রিগার করবে
+    } else if (data.customer) {
+      // ফিক্সড লিস্টে মিল পাওয়া যায়নি (সাধারণত OUT-HOUSE-এর ক্ষেত্রে হবে) —
+      // PDF-এর নামটাই বসিয়ে দেওয়া হলো, কিন্তু আনলকড থাকবে যাতে দরকার হলে ঠিক করা যায়
+      document.getElementById('customer_name').value = data.customer;
+      refreshAddressOptions(data.customer);
+    }
 
-      if (!excelFileInput.files || !excelFileInput.files.length) {
-        excelStatusMsg.textContent = 'অন্তত একটা .xls/.xlsx ফাইল সিলেক্ট করুন';
-        excelStatusMsg.className = 'status err';
-        return;
-      }
-      if (!clientSideValidate()) {
-        excelStatusMsg.textContent = 'উপরের ফিল্ডগুলো ঠিক করুন (Customer/Buyer/Delivery Address লাল দেখানো জায়গাগুলো)';
-        excelStatusMsg.className = 'status err';
-        return;
-      }
+    // --- Buyer: ফিক্সড লিস্টের সাথে case-insensitive মিল ---
+    const matchedBuyer = findCaseInsensitiveMatch(data.buyer, BUYERS);
+    if (matchedBuyer) {
+      buyerCombo.selectValue(matchedBuyer);
+    } else if (data.buyer) {
+      document.getElementById('buyer_name').value = data.buyer;
+    }
+    togglePrimarkWeightField();
 
-      // --- Ply ফাঁকা থাকলে confirm করে নেওয়া হচ্ছে (এক্সেলে Ply কলাম থাকলে সেটাই ব্যবহার হবে) ---
-      const plyVal = document.getElementById('outhouse_ply').value;
-      if (!plyVal) {
-        const proceed = window.confirm(
-          'Ply সিলেক্ট করা হয়নি।\n' +
-          'এক্সেল ফাইলে Ply কলাম না থাকলে Ply ছাড়াই (N/A) প্রসিড করতে চান?'
-        );
-        if (!proceed) {
-          excelStatusMsg.textContent = 'Ply সিলেক্ট করে আবার Process করুন, অথবা কনফার্ম করে এগিয়ে যান';
-          excelStatusMsg.className = 'status err';
-          return;
-        }
-      }
+    // --- PO Number: সরাসরি বসিয়ে দেওয়া হলো, এডিটযোগ্য থাকবে ---
+    if (data.po_number) {
+      document.getElementById('po_number').value = data.po_number;
+    }
 
-      const formData = new FormData();
-      for (const f of excelFileInput.files) formData.append('files', f);
-      formData.append('customer_type', 'OUT-HOUSE');
-      formData.append('customer_name', document.getElementById('customer_name').value.trim());
-      formData.append('buyer_name', document.getElementById('buyer_name').value.trim());
-      formData.append('po_number', document.getElementById('po_number').value.trim());
-      formData.append('item_name', document.getElementById('outhouse_item_name').value);
-      formData.append('ply', plyVal);
-      formData.append('delivery_mode', document.querySelector('input[name="delivery_mode"]:checked').value);
-      formData.append('delivery_date', document.getElementById('delivery_date').value || '');
-      formData.append('delivery_address', addressInput.value.trim());
+    const custOk = !!matchedCustomer;
+    const buyerOk = !!matchedBuyer;
+    if (custOk && buyerOk) {
+      statusMsg.textContent = 'Customer ও Buyer অটোমেটিক বসানো হয়েছে — এখন Delivery Address সিলেক্ট করে Process করুন';
+      statusMsg.className = 'status ok';
+    } else {
+      statusMsg.textContent = 'কিছু তথ্য (Customer/Buyer) আমাদের লিস্টে সরাসরি মেলেনি — লাল দেখানো ফিল্ডগুলো ম্যানুয়ালি চেক করে সিলেক্ট করুন';
+      statusMsg.className = 'status err';
+    }
+  } catch (err) {
+    statusMsg.textContent = 'PDF থেকে তথ্য বের করতে সমস্যা হয়েছে — নিচের ফিল্ডগুলো ম্যানুয়ালি পূরণ করুন';
+    statusMsg.className = 'status err';
+  } finally {
+    hideOverlay();
+  }
+}
 
-      excelSubmitBtn.disabled = true;
-      excelSubmitBtn.innerHTML = '<span class="spinner"></span>Processing...';
-      excelStatusMsg.innerHTML = '<span class="spinner"></span>ফাইলগুলো কম্বাইন করে Excel তৈরি হচ্ছে...';
-      excelStatusMsg.className = 'status loading';
-      showOverlay(`${excelFileInput.files.length}টা ফাইল প্রসেস হচ্ছে...`);
+// --- Validation ---
+const customerErr = document.getElementById('customer_err');
+const buyerErr = document.getElementById('buyer_err');
+const dateErr = document.getElementById('date_err');
+const addressErr = document.getElementById('address_err');
+const poErr = document.getElementById('po_err');
 
-      try {
-        const res = await fetch('/autocarton/process_outhouse_excel', { method: 'POST', body: formData });
-        const warnCount = parseInt(res.headers.get('X-Warning-Count') || '0', 10);
-        const fileCount = res.headers.get('X-File-Count') || excelFileInput.files.length;
+function resetForm() {
+  customerCombo.unlock();
+  buyerCombo.unlock();
+  addressCombo.unlock();
+  disableAddressField(true);
+  addressReqMark.style.display = 'none';
+  addressHint.textContent = 'Customer সিলেক্ট করার পর এখানে ঠিকানার লিস্ট আসবে';
+  document.getElementById('po_number').value = '';
+  customerTypeSel.value = 'IN-HOUSE';
+  document.querySelector('input[name="delivery_mode"][value="auto"]').checked = true;
+  manualDateWrap.style.display = 'none';
+  autoDateHint.style.display = 'block';
+  deliveryDateInput.value = '';
+  fileInput.value = '';
+  fileName.textContent = '';
+  dropText.textContent = 'এখানে PDF টেনে আনুন, বা ক্লিক করে সিলেক্ট করুন';
+  document.getElementById('remark_place').checked = false;
+  document.getElementById('remark_address').checked = false;
+  forceOverrideCheck.checked = false;
+  forceOverrideBox.classList.remove('active');
+  pdfDeliveryHint.classList.remove('show');
+  pdfDeliveryHint.innerHTML = '';
+  [customerErr, buyerErr, dateErr, addressErr, poErr].forEach(el => el.style.display = 'none');
+}
 
-        if (!res.ok) {
-          const data = await res.json();
-          throw new Error(data.error || 'একটা সমস্যা হয়েছে');
-        }
+function clientSideValidate() {
+  let ok = true;
+  [customerErr, buyerErr, dateErr, addressErr].forEach(el => el.style.display = 'none');
 
-        const blob = await res.blob();
-        const cd = res.headers.get('Content-Disposition') || '';
-        const match = cd.match(/filename="?([^"]+)"?/);
-        const filename = match ? match[1] : 'Output.xlsx';
+  const custType = customerTypeSel.value;
+  const custName = document.getElementById('customer_name').value.trim();
+  const custList = CUSTOMERS[custType] || [];
+  if (!custName || (custList.length && !custList.includes(custName))) {
+    customerErr.style.display = 'block';
+    ok = false;
+  }
 
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
+  const buyerName = document.getElementById('buyer_name').value.trim();
+  if (!buyerName || !BUYERS.includes(buyerName)) {
+    buyerErr.style.display = 'block';
+    ok = false;
+  }
 
-        let msg = `${fileCount}টা ফাইল কম্বাইন করে সম্পন্ন হয়েছে — Excel ডাউনলোড হচ্ছে`;
-        if (warnCount > 0) msg += ` — ⚠️ ${warnCount}টা warning আছে, Excel-এর "Warnings" শীট দেখুন`;
-        excelStatusMsg.textContent = msg;
-        excelStatusMsg.className = warnCount > 0 ? 'status err' : 'status ok';
-        excelFileInput.value = '';
-        excelFileNames.textContent = '';
-      } catch (err) {
-        excelStatusMsg.textContent = err.message;
-        excelStatusMsg.className = 'status err';
-      } finally {
-        excelSubmitBtn.disabled = false;
-        excelSubmitBtn.innerHTML = 'Excel ফাইলগুলো Process করুন';
-        hideOverlay();
-      }
-    });
+  const addresses = DELIVERY_ADDRESSES[custName] || [];
+  const addrVal = addressInput.value.trim();
+  if (addresses.length > 0 && !addrVal) {
+    addressErr.style.display = 'block';
+    ok = false;
+    window.alert(
+      '⚠️ Delivery Address ফাঁকা আছে!\n' +
+      'এটা সিলেক্ট না করে Process করা যাবে না।\n' +
+      'দয়া করে ড্রপডাউন থেকে সঠিক ডেলিভারি ঠিকানাটা বেছে নিন।'
+    );
+    addressInput.focus();
+  }
 
-    toggleOuthouseExcelCard();  // পেজ লোড হওয়ার সাথে সাথে সঠিক কার্ড দেখানোর জন্য (এখানে কল করা হচ্ছে যাতে submitBtn ইত্যাদি সব const আগেই ডিক্লেয়ার হয়ে যায়)
-  </script>
+  const mode = document.querySelector('input[name="delivery_mode"]:checked').value;
+  if (mode === 'manual') {
+    if (!deliveryDateInput.value || deliveryDateInput.value < minDateStr) {
+      dateErr.style.display = 'block';
+      ok = false;
+    }
+  }
+  return ok;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!fileInput.files.length) {
+    statusMsg.textContent = 'প্রথমে একটা PDF ফাইল সিলেক্ট করুন';
+    statusMsg.className = 'status err';
+    return;
+  }
+  if (!clientSideValidate()) {
+    statusMsg.textContent = 'উপরের ফিল্ডগুলো ঠিক করুন (লাল দেখানো জায়গাগুলো)';
+    statusMsg.className = 'status err';
+    return;
+  }
+
+  const trimsBookingMode = isTrimsBookingMode();
+
+  // --- Primark: ABOVE/BELOW 10KG বাধ্যতামূলক সিলেক্ট করতে হবে ---
+  if (trimsBookingMode && isPrimarkBuyer() && !getPrimarkWeightClass()) {
+    window.alert('Primark buyer-এর জন্য "ABOVE 10KG" বা "BELOW 10KG" সিলেক্ট করা আবশ্যক — অনুগ্রহ করে সিলেক্ট করে আবার Process করুন।');
+    return;
+  }
+
+  const formData = new FormData();
+  if (trimsBookingMode) {
+    // Trims Booking (Barnali/Modele-স্টাইল) ফরম্যাট — আলাদা এন্ডপয়েন্ট, PDF-হেডার
+    // ম্যাচিং/method/remarks এখানে প্রযোজ্য না (Item Name/Ply PDF থেকেই
+    // প্রতি রো-তে অটোমেটিক ঠিক হয়ে যায়)
+    formData.append('files', fileInput.files[0]);
+    formData.append('primark_weight_class', getPrimarkWeightClass());
+  } else {
+    formData.append('pdf_file', fileInput.files[0]);
+  }
+  formData.append('customer_type', customerTypeSel.value);
+  formData.append('customer_name', document.getElementById('customer_name').value.trim());
+  formData.append('buyer_name', document.getElementById('buyer_name').value.trim());
+  formData.append('po_number', document.getElementById('po_number').value.trim());
+  formData.append('delivery_mode', document.querySelector('input[name="delivery_mode"]:checked').value);
+  formData.append('delivery_date', deliveryDateInput.value);
+  formData.append('delivery_address', addressInput.value.trim());
+  if (!trimsBookingMode) {
+    formData.append('method', 'rule_based');
+    formData.append('remark_place', document.getElementById('remark_place').checked ? '1' : '');
+    formData.append('remark_address', document.getElementById('remark_address').checked ? '1' : '');
+    formData.append('force_override', forceOverrideCheck.checked ? '1' : '');
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<span class="spinner"></span>Processing...';
+  statusMsg.innerHTML = '<span class="spinner"></span>Excel ফাইল তৈরি হচ্ছে, একটু অপেক্ষা করুন...';
+  statusMsg.className = 'status loading';
+  showOverlay('Excel ফাইল তৈরি হচ্ছে, একটু অপেক্ষা করুন...');
+
+  try {
+    const endpoint = trimsBookingMode ? '/autocarton/process_outhouse_trims_booking_pdf' : '/process';
+    const res = await fetch(endpoint, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'কিছু একটা সমস্যা হয়েছে');
+    }
+    const warnCount = parseInt(res.headers.get('X-Warning-Count') || '0');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileInput.files[0].name.replace('.pdf', '').replace('.PDF','') + '_Output.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    let msg = 'সম্পন্ন হয়েছে — Excel ফাইল ডাউনলোড হচ্ছে';
+    if (warnCount > 0) msg += ` — ⚠️ ${warnCount}টা রো-তে জরুরি তথ্য মিসিং, Excel-এর "Warnings" শীট দেখুন`;
+    statusMsg.textContent = msg;
+    statusMsg.className = warnCount > 0 ? 'status err' : 'status ok';
+    resetForm();
+  } catch (err) {
+    statusMsg.textContent = err.message;
+    statusMsg.className = 'status err';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = 'Process করে Excel ডাউনলোড করুন';
+    hideOverlay();
+  }
+});
+
+// ============================================================
+// OUT-HOUSE Excel বুকিং ফাইল (একাধিক) — আলাদা ফ্লো, /autocarton/process_outhouse_excel
+// ============================================================
+const excelDropZone = document.getElementById('excelDropZone');
+const excelFileInput = document.getElementById('excelFileInput');
+const excelFileNames = document.getElementById('excelFileNames');
+const excelSubmitBtn = document.getElementById('excelSubmitBtn');
+const excelStatusMsg = document.getElementById('excelStatusMsg');
+
+function updateExcelFileNamesLabel() {
+  const files = excelFileInput.files;
+  if (!files || !files.length) {
+    excelFileNames.textContent = '';
+    return;
+  }
+  const names = Array.from(files).map(f => f.name);
+  excelFileNames.textContent = `${files.length}টা ফাইল সিলেক্ট করা হয়েছে: ${names.join(', ')}`;
+}
+
+excelDropZone.addEventListener('click', () => excelFileInput.click());
+excelDropZone.addEventListener('dragover', e => { e.preventDefault(); excelDropZone.classList.add('drag'); });
+excelDropZone.addEventListener('dragleave', () => excelDropZone.classList.remove('drag'));
+excelDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  excelDropZone.classList.remove('drag');
+  if (e.dataTransfer.files.length) {
+    excelFileInput.files = e.dataTransfer.files;
+    updateExcelFileNamesLabel();
+  }
+});
+excelFileInput.addEventListener('change', updateExcelFileNamesLabel);
+
+excelSubmitBtn.addEventListener('click', async () => {
+  excelStatusMsg.textContent = '';
+  excelStatusMsg.className = 'status';
+
+  if (!excelFileInput.files || !excelFileInput.files.length) {
+    excelStatusMsg.textContent = 'অন্তত একটা .xls/.xlsx ফাইল সিলেক্ট করুন';
+    excelStatusMsg.className = 'status err';
+    return;
+  }
+  if (!clientSideValidate()) {
+    excelStatusMsg.textContent = 'উপরের ফিল্ডগুলো ঠিক করুন (Customer/Buyer/Delivery Address লাল দেখানো জায়গাগুলো)';
+    excelStatusMsg.className = 'status err';
+    return;
+  }
+
+  // --- Ply ফাঁকা থাকলে confirm করে নেওয়া হচ্ছে (এক্সেলে Ply কলাম থাকলে সেটাই ব্যবহার হবে) ---
+  const plyVal = document.getElementById('outhouse_ply').value;
+  if (!plyVal) {
+    const proceed = window.confirm(
+      'Ply সিলেক্ট করা হয়নি।\n' +
+      'এক্সেল ফাইলে Ply কলাম না থাকলে Ply ছাড়াই (N/A) প্রসিড করতে চান?'
+    );
+    if (!proceed) {
+      excelStatusMsg.textContent = 'Ply সিলেক্ট করে আবার Process করুন, অথবা কনফার্ম করে এগিয়ে যান';
+      excelStatusMsg.className = 'status err';
+      return;
+    }
+  }
+
+  const formData = new FormData();
+  for (const f of excelFileInput.files) formData.append('files', f);
+  formData.append('customer_type', 'OUT-HOUSE');
+  formData.append('customer_name', document.getElementById('customer_name').value.trim());
+  formData.append('buyer_name', document.getElementById('buyer_name').value.trim());
+  formData.append('po_number', document.getElementById('po_number').value.trim());
+  formData.append('item_name', document.getElementById('outhouse_item_name').value);
+  formData.append('ply', plyVal);
+  formData.append('delivery_mode', document.querySelector('input[name="delivery_mode"]:checked').value);
+  formData.append('delivery_date', document.getElementById('delivery_date').value || '');
+  formData.append('delivery_address', addressInput.value.trim());
+
+  excelSubmitBtn.disabled = true;
+  excelSubmitBtn.innerHTML = '<span class="spinner"></span>Processing...';
+  excelStatusMsg.innerHTML = '<span class="spinner"></span>ফাইলগুলো কম্বাইন করে Excel তৈরি হচ্ছে...';
+  excelStatusMsg.className = 'status loading';
+  showOverlay(`${excelFileInput.files.length}টা ফাইল প্রসেস হচ্ছে...`);
+
+  try {
+    const res = await fetch('/autocarton/process_outhouse_excel', { method: 'POST', body: formData });
+    const warnCount = parseInt(res.headers.get('X-Warning-Count') || '0', 10);
+    const fileCount = res.headers.get('X-File-Count') || excelFileInput.files.length;
+
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'একটা সমস্যা হয়েছে');
+    }
+
+    const blob = await res.blob();
+    const cd = res.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : 'Output.xlsx';
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    let msg = `${fileCount}টা ফাইল কম্বাইন করে সম্পন্ন হয়েছে — Excel ডাউনলোড হচ্ছে`;
+    if (warnCount > 0) msg += ` — ⚠️ ${warnCount}টা warning আছে, Excel-এর "Warnings" শীট দেখুন`;
+    excelStatusMsg.textContent = msg;
+    excelStatusMsg.className = warnCount > 0 ? 'status err' : 'status ok';
+    excelFileInput.value = '';
+    excelFileNames.textContent = '';
+  } catch (err) {
+    excelStatusMsg.textContent = err.message;
+    excelStatusMsg.className = 'status err';
+  } finally {
+    excelSubmitBtn.disabled = false;
+    excelSubmitBtn.innerHTML = 'Excel ফাইলগুলো Process করুন';
+    hideOverlay();
+  }
+});
+
+toggleOuthouseExcelCard();  // পেজ লোড হওয়ার সাথে সাথে সঠিক কার্ড দেখানোর জন্য (এখানে কল করা হচ্ছে যাতে submitBtn ইত্যাদি সব const আগেই ডিক্লেয়ার হয়ে যায়)
+</script>
 </body>
-
 </html>

@@ -8,57 +8,75 @@ def clean(v):
     return re.sub(r'\s+', ' ', str(v)).strip()
 
 
-# টাইটেল রো থেকে Job No / Style No / Po No বের করার প্যাটার্ন। এই ফরম্যাটে
-# ("Multiple Job Wise Trims Booking V2") প্রতিটা Job/Style ব্লকের শুরুতে
-# একটাই লম্বা লাইনে সব তথ্য থাকে, যেমন:
-#   "Size Sensitive (Job NO:BTL-26-00399) Style NO:2502 Int Ref.: Po Qty..:18000 Po No: 111043-1 LC/SC:"
-#   "NO sensitive (Job NO:BTL-26-00399) Style NO:2502 Int Ref.: Po Qty.: 18000 Po No: 111043-1 LC/SC:"
+# টাইটেল রো থেকে Job No / Style No / Po No বের করার প্যাটার্ন। এই PDF-পরিবারে
+# ("Multiple Job Wise Trims Booking V2") প্রতিটা Job/Style ব্লকের শুরুতে একটাই
+# লম্বা লাইনে সব তথ্য থাকে — buyer/vendor ভেদে prefix লেবেল (Size Sensitive/
+# NO sensitive/As Per Garments Color/Color & size sensitive ইত্যাদি) এবং শেষে
+# কী দিয়ে থামে (LC/SC: বা Shipment Date:) আলাদা হতে পারে, তাই prefix লেবেল
+# উপেক্ষা করে শুধু Job NO/Style NO/Po No প্যাটার্নটাই ধরা হচ্ছে — এটা নতুন
+# prefix লেবেল এলেও কাজ করবে।
 _TITLE_RE = re.compile(
-    r'(Size\s*Sensitive|NO\s*sensitive)\s*\(\s*Job\s*NO\s*:\s*([^)]+)\)\s*'
-    r'Style\s*NO\s*:\s*(\S+).*?Po\s*No\s*:\s*([^L]+?)\s*LC/SC',
+    r'\(\s*Job\s*NO\s*:\s*([^)]+)\)\s*'
+    r'Style\s*NO\s*:\s*(\S+).*?'
+    r'Po\s*No\s*:\s*(.+?)\s*(?:LC/SC|Shipment\s*Date|$)',
     re.I,
 )
 
-# Item Description-এর মধ্যে থাকা মেজারমেন্ট বের করার প্যাটার্ন, যেমন:
-#   "L55 X W35 X H16 CM"  অথবা  "L53 X W33 CM" (Top/Btm-এ Height থাকে না)
-_MEASUREMENT_RE = re.compile(
+# Item Description-এর মধ্যে থাকা মেজারমেন্ট বের করার দুই ধরনের প্যাটার্ন:
+#   (ক) "L55 X W35 X H16 CM"   — L/W/H লেটার-প্রিফিক্সড (Barnali-স্টাইল)
+#   (খ) "300X200X160 MM"       — শুধু সংখ্যা×সংখ্যা×সংখ্যা, ইউনিট শেষে (Modele-স্টাইল)
+_MEASUREMENT_RE_LETTERED = re.compile(
     r'L\s*[-]?\s*(\d+(?:\.\d+)?)\s*X\s*W\s*[-]?\s*(\d+(?:\.\d+)?)'
-    r'(?:\s*X\s*H\s*[-]?\s*(\d+(?:\.\d+)?))?',
+    r'(?:\s*X\s*H\s*[-]?\s*(\d+(?:\.\d+)?))?\s*(CM|MM)?',
     re.I,
 )
+_MEASUREMENT_RE_PLAIN = re.compile(
+    r'(\d+(?:\.\d+)?)\s*[Xx]\s*(\d+(?:\.\d+)?)\s*[Xx]\s*(\d+(?:\.\d+)?)\s*(CM|MM)?',
+    re.I,
+)
+
+
+def _match_measurement(text):
+    m = _MEASUREMENT_RE_LETTERED.search(text)
+    if m:
+        return m.group(1), m.group(2), m.group(3) or '', (m.group(4) or 'CM').upper()
+    m = _MEASUREMENT_RE_PLAIN.search(text)
+    if m:
+        return m.group(1), m.group(2), m.group(3) or '', (m.group(4) or 'CM').upper()
+    return None
 
 
 def _parse_title(text):
     m = _TITLE_RE.search(text)
     if not m:
         return None
-    block_kind = 'size_sensitive' if 'size' in m.group(1).lower() else 'no_sensitive'
     return {
-        'block_kind': block_kind,
-        'job_no': clean(m.group(2)),
-        'style_no': clean(m.group(3)),
-        'po_no': clean(m.group(4)),
+        'job_no': clean(m.group(1)),
+        'style_no': clean(m.group(2)),
+        'po_no': clean(m.group(3)),
     }
 
 
-def extract_barnali_line_items(pdf):
-    """'Multiple Job Wise Trims Booking V2' ফরম্যাটের PDF (যেমন Barnali
-    Textile-এর OUT-HOUSE বুকিং) থেকে লাইন-আইটেম বের করে।
+def extract_trims_booking_line_items(pdf):
+    """'Multiple Job Wise Trims Booking V2' PDF-পরিবার (Barnali, Modele de
+    Capital ইত্যাদি — একই ERP সফটওয়্যার থেকে তৈরি, কিন্তু ভেন্ডর-ভেদে কলাম
+    সাজানো/টাইটেল-লেবেল একটু আলাদা) থেকে লাইন-আইটেম বের করে।
 
-    এই PDF-এ প্রতিটা Job/Style ব্লকে দুটো সাব-টেবিল থাকে:
-    - 'Size Sensitive'  -> Item Group 'Carton'         -> Item Name 'Master Carton', Ply 5
-    - 'NO sensitive'    -> Item Group 'Carton Top/Btm' -> Item Name 'Top Bottom',    Ply 3
+    Item Group কলাম অনুযায়ী:
+    - 'Carton'          -> Item Name 'Master Carton', ডিফল্ট Ply 5
+    - 'Carton Top/Btm'  -> Item Name 'Top Bottom',    ডিফল্ট Ply 3
+    (কোনো buyer-এর জন্য Ply ফিক্সড/ওভাররাইড দরকার হলে — যেমন Primark সবসময়
+    3-ply — সেটা app.py-তে বায়ার নিশ্চিত হওয়ার পর প্রয়োগ হয়, কারণ
+    এক্সট্র্যাকশনের সময় এখনো জানা থাকে না ইউজার শেষমেশ কোন buyer কনফার্ম করবেন)
 
-    কৌশল: pdfplumber-এর টেবিল এক্সট্র্যাকশনে এই নির্দিষ্ট PDF-এ পাতা-ভেদে
-    কলাম-বাউন্ডারি সামান্য শিফট হয় (এক পাতায় যেই কলাম index 6-এ থাকে,
-    আরেক পাতায় সেটা 7-এ চলে যায়) — তাই exact column index-এর ওপর ভরসা না
-    করে, প্রতিটা রো-তে "ল্যান্ডমার্ক" মান (মেজারমেন্ট প্যাটার্ন, আর 'Pcs'
-    টেক্সট) খুঁজে সেগুলোর সাপেক্ষে ডাটা বের করা হচ্ছে — এটা কলাম-শিফট হলেও
-    ঠিক কাজ করে।
+    কৌশল: এই PDF-পরিবারে পাতা-ভেদে টেবিলের কলাম-বাউন্ডারি সামান্য শিফট হতে
+    পারে, তাই exact column index ধরে না রেখে প্রতিটা রো-তে "ল্যান্ডমার্ক"
+    মান (মেজারমেন্ট প্যাটার্ন, আর 'Pcs' টেক্সট) খুঁজে সেগুলোর সাপেক্ষে ডাটা
+    বের করা হচ্ছে।
 
     Style No/PO No/Job No ব্লক-টাইটেল থেকে আসে (প্রতিটা সাইজ-ভ্যারিয়েন্ট
     রো-তে এগুলো repeat হয় না, তাই ব্লক-লেভেলে ধরে রেখে প্রতিটা ডাটা রো-তে
-    বসানো হয় — অনেকটা forward-fill-এর মতোই)।
+    ফরওয়ার্ড-ফিল করে বসানো হয়)।
     """
     line_items = []
     current_block = None
@@ -97,30 +115,36 @@ def extract_barnali_line_items(pdf):
                 if not current_item_group:
                     continue
 
-                measurement_match = None
+                measurement = None
                 for c in row:
                     if c is None:
                         continue
-                    mm = _MEASUREMENT_RE.search(str(c))
-                    if mm:
-                        measurement_match = mm
+                    measurement = _match_measurement(str(c))
+                    if measurement:
                         break
-                if not measurement_match:
+                if not measurement:
                     continue  # ডাটা রো না (সম্ভবত কোনো সামারি/অন্য লাইন)
 
-                length = measurement_match.group(1)
-                width = measurement_match.group(2)
-                height = measurement_match.group(3) or ''
+                length, width, height, unit = measurement
 
                 # Qty: 'Pcs'-এর ঠিক আগের non-blank ভ্যালুটাই কোয়ান্টিটি
-                # (Size Sensitive-এ 'WO Qty.', NO sensitive-এ 'Qnty' — কলামের
-                # নাম আলাদা হলেও পজিশন সবসময় 'Pcs'-এর ঠিক আগেই থাকে)
+                # (কলামের নাম ভিন্ন হতে পারে — 'WO Qty.'/'WO Qty'/'Qnty' —
+                # কিন্তু পজিশন সবসময় 'Pcs'-এর ঠিক আগেই থাকে)।
+                # কিছু পাতায় pdfplumber সংখ্যার শেষ ডিজিট 'Pcs'-এর সাথে জুড়ে
+                # দেয় (যেমন '51.0000 Pcs' -> '51.000' + '0 Pcs') — সেই
+                # গ্লিচ ধরে সঠিক সংখ্যাটা পুনর্গঠন করা হচ্ছে।
                 non_blank = [clean(c) for c in row if c is not None and clean(c) != '']
                 qty = ''
-                if 'Pcs' in non_blank:
-                    pcs_idx = non_blank.index('Pcs')
-                    if pcs_idx > 0:
-                        qty = non_blank[pcs_idx - 1]
+                pcs_idx = None
+                pcs_prefix = ''
+                for i, val in enumerate(non_blank):
+                    pm = re.match(r'^(\d*)\s*Pcs$', val, re.I)
+                    if pm:
+                        pcs_idx = i
+                        pcs_prefix = pm.group(1)
+                        break
+                if pcs_idx is not None and pcs_idx > 0:
+                    qty = non_blank[pcs_idx - 1] + pcs_prefix
 
                 is_top_bottom = 'top' in current_item_group.lower()
                 item_name = 'Top Bottom' if is_top_bottom else 'Master Carton'
@@ -142,7 +166,7 @@ def extract_barnali_line_items(pdf):
                     'color': '',
                     'size': '',
                     'delivery_date': '',
-                    'measurement_unit': 'Cm',
+                    'measurement_unit': unit.title(),
                     'delivery_place_pdf': '',
                     'delivery_address_pdf': '',
                 })
@@ -160,11 +184,9 @@ def _significant_words(s):
 
 
 def _fuzzy_match_from_list(text, candidates):
-    """PDF থেকে বের করা raw টেক্সট (যেমন 'Barnali Textile and Printing Ind')
-    আমাদের ফিক্সড লিস্টের (যেমন 'Barnali Textile and Printing Industries
-    (Pvt) Ltd.') কোনটার সাথে সবচেয়ে বেশি মেলে সেটা খুঁজে বের করে —
-    case-sensitive হুবহু মেলার দরকার নেই, PDF-ভেদে সংক্ষিপ্ত/ভিন্ন
-    বানান (Ind vs Industries) থাকলেও কাজ করে। মিল ৫০%-এর কম হলে None।"""
+    """PDF থেকে বের করা raw টেক্সট আমাদের ফিক্সড লিস্টের কোনটার সাথে সবচেয়ে
+    বেশি মেলে সেটা খুঁজে বের করে — case-sensitive হুবহু মেলার দরকার নেই।
+    মিল ৫০%-এর কম হলে None (তখন ইউজারকে ম্যানুয়ালি বসাতে হবে)।"""
     if not text or not candidates:
         return None
     text_words = _significant_words(text)
@@ -183,17 +205,18 @@ def _fuzzy_match_from_list(text, candidates):
     return best if best_score >= 0.5 else None
 
 
-def extract_barnali_header_info(pdf, known_customers=None, known_buyers=None):
-    """এই ফরম্যাটের PDF-এর প্রথম পাতা থেকে Booking No (-> PO Number),
-    Buyer, এবং Customer (vendor company name) বের করে — পাওয়া গেলে
-    known_customers/known_buyers লিস্টের সাথে fuzzy ম্যাচ করে ক্যানোনিকাল
-    নামে বসিয়ে দেয় (case-insensitive, ছোটখাটো বানান-ভিন্নতা সহ্য করে)।"""
+def extract_trims_booking_header_info(pdf, known_customers=None, known_buyers=None):
+    """এই PDF-পরিবারের প্রথম পাতা থেকে Booking No (-> PO Number), Buyer,
+    এবং Customer (vendor company name) বের করে — known_customers/
+    known_buyers লিস্টের সাথে fuzzy ম্যাচ করে ক্যানোনিকাল নামে বসিয়ে দেয়।
+    কোনোটার সাথে মিল না পেলে (৫০%-এর কম) সেটা ফাঁকা রাখা হয় — যাতে ইউজার
+    বুঝতে পারেন ম্যানুয়ালি লিস্ট থেকে বসাতে হবে, ভুল/আধা-মেলা নাম না বসে।"""
     text = pdf.pages[0].extract_text() or ''
 
     booking_no_m = re.search(r'Booking\s*No\s*:\s*(\S+)', text)
     booking_no = booking_no_m.group(1).strip() if booking_no_m else ''
 
-    buyer_m = re.search(r'Buyer\.?\s*:\s*(.+?)\s+Delivery Date', text)
+    buyer_m = re.search(r'Buyer\.?\s*:\s*(.+?)\s+(?:Delivery Date|PO Qty)', text)
     buyer_raw = buyer_m.group(1).strip() if buyer_m else ''
 
     customer_m = re.search(r'^(.+?)\s*Booking\s*No\s*:', text, re.DOTALL)
@@ -204,20 +227,18 @@ def extract_barnali_header_info(pdf, known_customers=None, known_buyers=None):
 
     return {
         'po_number': booking_no,
-        'customer': customer_matched or customer_raw,
-        'buyer': buyer_matched or buyer_raw,
+        'customer': customer_matched or '',
+        'buyer': buyer_matched or '',
     }
 
 
-def process_barnali_pdf(file_stream, known_customers=None, known_buyers=None):
+def process_trims_booking_pdf(file_stream, known_customers=None, known_buyers=None):
     """এন্ট্রি পয়েন্ট — Returns (header_info, line_items)।
-    header_info: {'po_number', 'customer', 'buyer'} — Booking No/Buyer/Customer
-    অটো-এক্সট্র্যাক্ট করে, known_customers/known_buyers দেওয়া থাকলে
-    ফাজি-ম্যাচ করে ক্যানোনিকাল নামে বসিয়ে দেয়।
+    header_info: {'po_number', 'customer', 'buyer'} — মিল না পেলে ফাঁকা স্ট্রিং।
     line_items: canonical schema (builder.py-এর build_combined_excel সরাসরি
     এটা নিতে পারবে, প্রোফাইল='OUT-HOUSE')।
     """
     with pdfplumber.open(file_stream) as pdf:
-        header_info = extract_barnali_header_info(pdf, known_customers, known_buyers)
-        line_items = extract_barnali_line_items(pdf)
+        header_info = extract_trims_booking_header_info(pdf, known_customers, known_buyers)
+        line_items = extract_trims_booking_line_items(pdf)
     return header_info, line_items

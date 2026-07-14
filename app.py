@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import tempfile
 
 from flask import Flask, request, render_template, send_file, jsonify
@@ -7,7 +8,7 @@ from flask import Flask, request, render_template, send_file, jsonify
 from extractor import process_pdf_rule_based, get_unique_delivery_info
 from builder import build_combined_excel, validate_line_items
 from outhouse_extractor import combine_booking_excels
-from outhouse_pdf_extractor import process_barnali_pdf
+from outhouse_pdf_extractor import process_trims_booking_pdf
 from thermal_extractor import process_pdf_thermal, get_unique_delivery_info_thermal
 from thermal_builder import build_thermal_excel, validate_thermal_line_items
 from thermal_config import THERMAL_BUYERS, THERMAL_BUYER_ALIASES, THERMAL_VERIFIED_BUYERS
@@ -545,7 +546,7 @@ def autocarton_extract_header_outhouse_pdf():
         return jsonify({'error': 'ফাইল সিলেক্ট করা হয়নি'}), 400
 
     try:
-        header_info, _items = process_barnali_pdf(
+        header_info, _items = process_trims_booking_pdf(
             io.BytesIO(pdf_file.read()), CUSTOMERS.get('OUT-HOUSE', []), BUYERS)
     except Exception as e:
         return jsonify({'error': f'PDF থেকে তথ্য বের করতে সমস্যা হয়েছে: {str(e)}'}), 422
@@ -580,6 +581,7 @@ def autocarton_process_outhouse_trims_booking_pdf():
     delivery_mode = request.form.get('delivery_mode', 'auto').strip()
     delivery_date_manual = request.form.get('delivery_date', '').strip()
     delivery_address = request.form.get('delivery_address', '').strip()
+    primark_weight_class = request.form.get('primark_weight_class', '').strip()
 
     customer_error = validate_customer('OUT-HOUSE', customer_name)
     if customer_error:
@@ -588,6 +590,14 @@ def autocarton_process_outhouse_trims_booking_pdf():
     buyer_error = validate_buyer_in_list(buyer_name, BUYERS)
     if buyer_error:
         return jsonify({'error': buyer_error}), 422
+
+    # Primark-এর জন্য স্পেশাল রুল: সবসময় 3-ply, এবং ABOVE/BELOW 10KG
+    # বাধ্যতামূলক সিলেক্ট করতে হবে (Style No-এর সাথে '/' দিয়ে জুড়ে বসবে)।
+    # ফ্রন্টএন্ডেও এটা চেক করা হয়, কিন্তু ব্যাকএন্ডেও একই চেক রাখা হচ্ছে
+    # (defense in depth — সরাসরি API কল করলেও যেন এড়ানো না যায়)।
+    is_primark = buyer_name.strip().lower() == 'primark'
+    if is_primark and primark_weight_class not in ('ABOVE 10KG', 'BELOW 10KG'):
+        return jsonify({'error': "Primark buyer-এর জন্য 'ABOVE 10KG' বা 'BELOW 10KG' সিলেক্ট করা আবশ্যক।"}), 422
 
     address_error = validate_delivery_address(customer_name, delivery_address)
     if address_error:
@@ -605,7 +615,7 @@ def autocarton_process_outhouse_trims_booking_pdf():
     file_errors = []
     for f in files:
         try:
-            _hdr, items = process_barnali_pdf(io.BytesIO(f.read()), CUSTOMERS.get('OUT-HOUSE', []), BUYERS)
+            _hdr, items = process_trims_booking_pdf(io.BytesIO(f.read()), CUSTOMERS.get('OUT-HOUSE', []), BUYERS)
             if not items:
                 file_errors.append(f"{f.filename}: কোনো লাইন-আইটেম পাওয়া যায়নি (পরিচিত ফরম্যাট না হতে পারে)")
                 continue
@@ -618,6 +628,15 @@ def autocarton_process_outhouse_trims_booking_pdf():
         if file_errors:
             msg += ' সমস্যা: ' + '; '.join(file_errors)
         return jsonify({'error': msg}), 422
+
+    # Primark: সবসময় 3-ply (Item Group যা-ই হোক), আর Style No-এর সাথে
+    # ইউজারের সিলেক্ট করা ABOVE/BELOW 10KG '/' দিয়ে জুড়ে বসবে
+    # (যেমন Style '90627' -> '90627/ABOVE 10KG')।
+    if is_primark:
+        for item in line_items:
+            item['ply'] = '3'
+            if item.get('style_no'):
+                item['style_no'] = f"{item['style_no']}/{primark_weight_class}"
 
     warnings = validate_line_items(line_items)
     for e in file_errors:
@@ -637,6 +656,9 @@ def autocarton_process_outhouse_trims_booking_pdf():
 
     combined_label = '_'.join(sorted({str(it.get('style_no', '')) for it in line_items if it.get('style_no')}))[:60]
     base_name = f"{customer_name}_{buyer_name}_{combined_label}_OUTHOUSE".replace(' ', '_')
+    # ফাইলসিস্টেম-অসেইফ ক্যারেক্টার সরানো হচ্ছে (Primark-এর 'ABOVE 10KG' style
+    # suffix-এ '/' থাকে, যেটা path separator হিসেবে ভুল বোঝার কারণে এরর দিচ্ছিল)
+    base_name = re.sub(r'[\\/:*?"<>|]', '-', base_name)
 
     try:
         with tempfile.TemporaryDirectory() as tmpdir:

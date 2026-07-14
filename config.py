@@ -25,6 +25,7 @@ CUSTOMERS = {
         "GoodEarth Apparels ltd.",
         "Barnali Textile and Printing Industries (Pvt) Ltd.",
         "Barnali Collections Limited",
+        "Modele de Capital Ind Ltd.",
     ],
 }
 
@@ -41,6 +42,8 @@ BUYERS = [
     "Tommy Jeans",
     "American Eagle",
     "Hultafors Group AB",
+    "Primark",
+    "Aditya Birla",
     "Carhartt",
     "Varner",
     "Express",
@@ -81,6 +84,8 @@ CARTON_VERIFIED_BUYERS = [
     "Target Australia",
     "American Eagle",
     "Hultafors Group AB",
+    "Primark",
+    "Aditya Birla",
 ]
 
 BUYER_ALIASES = {
@@ -166,6 +171,11 @@ DELIVERY_ADDRESSES = {
     'Barnali Collections Limited': [
         'Barnali Collection (Pvt.) Ltd.',
         'Barnali Textile and Printing Industries (Pvt) Ltd.',
+    ],
+    'Modele de Capital Ind Ltd.': [
+        'Modele de Capital Ind Ltd.',
+        'Modele de Capital Ltd. (Dying Section)',
+        'Goumati Knit Wears Ltd.',
     ],
     'Impress Fashion Limited': ['Impress Fashion Ltd.'],
     'Dazzling Dresses Ltd.': ['Dazzling Dresses Ltd.', 'Epyllion Style Limited'],
