@@ -91,6 +91,35 @@ CARTON_VERIFIED_BUYERS = [
     "Macy",
 ]
 
+# ---------------------------------------------------------------------------
+# OUT-HOUSE-এ Customer সিলেক্ট করলে শুধু ওই Customer-এর জন্য প্রযোজ্য Buyer-ই
+# Buyer ড্রপডাউনে দেখানো হবে (Delivery Address-এর মতোই Customer-অনুযায়ী
+# ফিল্টার হয়)। নতুন Customer/Buyer কম্বিনেশন verify হলে এখানে যোগ করুন।
+# কোনো Customer এখানে না থাকলে (এখনো ম্যাপ করা হয়নি) ডিফল্টভাবে পুরো
+# BUYERS লিস্টই দেখাবে, যাতে নতুন/অজানা Customer-এর কাজ আটকে না যায়।
+#
+# IN-HOUSE-এ এই ফিল্টার প্রযোজ্য না — সবসময় পুরো BUYERS লিস্টই দেখাবে,
+# কারণ IN-HOUSE PDF ফরম্যাট অনেকটাই একরকম এবং বিভিন্ন buyer-এর PDF থেকেও
+# ডাটা তুলতে পারে।
+# ---------------------------------------------------------------------------
+OUTHOUSE_CUSTOMER_BUYERS = {
+    "GoodEarth Apparels ltd.": ["American Eagle", "Aditya Birla"],
+    "Barnali Textile and Printing Industries (Pvt) Ltd.": ["Hultafors Group AB"],
+    "Barnali Collections Limited": ["Hultafors Group AB"],
+    "Modele de Capital Ind Ltd.": ["Primark"],
+    "Norp Knit Industries Ltd.": ["Macy"],
+}
+
+# ---------------------------------------------------------------------------
+# এই Customer+Buyer কম্বিনেশনে Excel ফরম্যাট এমনভাবে বানানো (যেমন Norp Knit-
+# এর Remarks কলাম থেকে Item Name অটো-ডিটেক্ট হয়) যে Item Name/Ply UI থেকে
+# ম্যানুয়ালি সিলেক্ট করার দরকার নেই — সিলেক্ট করলেও সেটা ইগনোর হয়ে যাবে।
+# তাই ফ্রন্টএন্ডে এই কম্বিনেশনে ওই দুটো ফিল্ড লক/ব্লার করে একটা নোট দেখানো হয়।
+# ---------------------------------------------------------------------------
+OUTHOUSE_AUTO_ITEM_PLY_COMBOS = [
+    ["Norp Knit Industries Ltd.", "Macy"],
+]
+
 BUYER_ALIASES = {
     "M&S": "MARKS & SPENCER SCM LTD.",
     "MARKS & SPENCER": "MARKS & SPENCER SCM LTD.",

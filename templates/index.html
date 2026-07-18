@@ -270,6 +270,90 @@
   }
   .overlay-box p { margin: 0; font-size: 13.5px; color: var(--brown-dark); font-weight: 500; }
 
+  /* --- Item Name/Ply অটো-ডিটেক্ট হলে লক/ব্লার দেখানোর জন্য --- */
+  select.field-locked, input.field-locked {
+    filter: blur(0.4px);
+    opacity: 0.55;
+    background: #f2f0ea;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  /* --- কাস্টম মডাল ডায়ালগ (browser-এর plain alert/confirm-এর বদলে) --- */
+  .app-modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(20, 18, 12, 0.5);
+    z-index: 10500;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .app-modal-overlay.show { display: flex; }
+  .app-modal-box {
+    background: #fff;
+    border-radius: 14px;
+    max-width: 380px;
+    width: 100%;
+    box-shadow: 0 20px 50px rgba(20,15,5,0.3);
+    overflow: hidden;
+    border-top: 5px solid var(--brown);
+    animation: modalPop .16s ease-out;
+  }
+  @keyframes modalPop {
+    from { transform: scale(0.94) translateY(6px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .app-modal-icon {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: #fdecec;
+    color: var(--err);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    margin: 22px auto 4px;
+  }
+  .app-modal-icon.info { background: #f7f2ea; color: var(--brown-dark); }
+  .app-modal-title {
+    text-align: center;
+    font-size: 15.5px;
+    font-weight: 700;
+    color: var(--brown-dark);
+    margin: 10px 22px 6px;
+  }
+  .app-modal-message {
+    text-align: center;
+    font-size: 13px;
+    color: #4a4a42;
+    line-height: 1.6;
+    margin: 0 24px 22px;
+    white-space: pre-line;
+  }
+  .app-modal-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+  .app-modal-btn {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background: #f7f4ee;
+    color: var(--brown-dark);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .12s ease;
+  }
+  .app-modal-btn:hover { background: #ece7dc; }
+  .app-modal-btn.primary {
+    background: var(--brown);
+    border-color: var(--brown);
+    color: #fff;
+  }
+  .app-modal-btn.primary:hover { background: var(--brown-dark); }
+
   /* --- মডিউল কালার বার + ব্যাক লিংক (কোন মডিউলে আছি বোঝার জন্য) --- */
   .module-bar {
     position: fixed; top: 0; left: 0; right: 0; height: 5px;
@@ -301,6 +385,14 @@
   <div class="overlay-box">
     <div class="spinner-lg"></div>
     <p id="overlayText">Processing...</p>
+  </div>
+</div>
+<div class="app-modal-overlay" id="appModalOverlay">
+  <div class="app-modal-box">
+    <div class="app-modal-icon" id="appModalIcon">⚠</div>
+    <div class="app-modal-title" id="appModalTitle"></div>
+    <div class="app-modal-message" id="appModalMessage"></div>
+    <div class="app-modal-actions" id="appModalActions"></div>
   </div>
 </div>
 
@@ -433,6 +525,10 @@
       <div class="section-title">OUT-HOUSE — Excel বুকিং ফাইল (একাধিক আপলোড করা যাবে)</div>
       <div class="hint">একই কাস্টমার/বায়ারের একাধিক বুকিং এক্সেল (.xls/.xlsx) একসাথে সিলেক্ট করুন — সবগুলো আপলোড-ক্রম অনুযায়ী কম্বাইন হয়ে একটাই Excel টেমপ্লেটে বসবে। উপরের Customer/Buyer/Delivery ফিল্ড এই Excel প্রসেসিংয়েও ব্যবহার হবে।</div>
 
+      <div id="itemPlyAutoNote" class="pdf-hint-box" style="display:none; margin-top:10px;">
+        ℹ️ এই Customer/Buyer-এর জন্য Item Name ও Ply এক্সেল ফাইল থেকেই প্রতি রো-তে অটোমেটিক ঠিক হয়ে যায় — এখানে কিছু সিলেক্ট করার প্রয়োজন নেই।
+      </div>
+
       <div class="grid" style="margin-top:10px;">
         <div class="field">
           <label for="outhouse_item_name">Item Name <span class="req">*</span></label>
@@ -479,6 +575,8 @@
 const CUSTOMERS = {{ customers | tojson }};
 const BUYERS = {{ buyers | tojson }};
 const DELIVERY_ADDRESSES = {{ delivery_addresses | tojson }};
+const OUTHOUSE_CUSTOMER_BUYERS = {{ outhouse_customer_buyers | tojson }};
+const OUTHOUSE_AUTO_ITEM_PLY_COMBOS = {{ outhouse_auto_item_ply_combos | tojson }};
 
 const customerTypeSel = document.getElementById('customer_type');
 
@@ -552,9 +650,10 @@ function setupCombo({ inputId, panelId, clearId, getOptions, onSelect, onUnlock 
 const customerCombo = setupCombo({
   inputId: 'customer_name', panelId: 'customer_panel', clearId: 'customer_clear',
   getOptions: () => CUSTOMERS[customerTypeSel.value] || [],
-  onSelect: (value) => { refreshAddressOptions(value); },
+  onSelect: (value) => { refreshAddressOptions(value); updateItemPlyLockState(); },
   onUnlock: () => { addressCombo.unlock(); disableAddressField(true); },
 });
+document.getElementById('customer_name').addEventListener('input', updateItemPlyLockState);
 
 const outhouseExcelCard = document.getElementById('outhouseExcelCard');
 const pdfUploadCard = document.getElementById('pdfUploadCard');
@@ -575,6 +674,13 @@ function isTrimsBookingMode() {
 }
 
 function toggleOuthouseExcelCard() {
+  // appendChild দিয়ে কার্ড রিঅর্ডার করার সময়, যদি কোনো ফোকাসড এলিমেন্ট
+  // (যেমন সবেমাত্র সিলেক্ট করা dropdown) মুভ হয়, ব্রাউজার নিজে থেকে সেটা
+  // ভিউতে আনতে স্ক্রল করে দেয় — এটা এড়াতে স্ক্রল পজিশন আগে ধরে রেখে পরে
+  // ফিরিয়ে দেওয়া হচ্ছে, যাতে ইউজার যেখানে ছিলেন সেখানেই থাকেন।
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+
   const isOuthouse = customerTypeSel.value === 'OUT-HOUSE';
   outhouseFileTypeField.style.display = isOuthouse ? 'block' : 'none';
 
@@ -599,6 +705,8 @@ function toggleOuthouseExcelCard() {
     form.appendChild(outhouseExcelCard);
   }
   form.appendChild(pdfSubmitCard);  // "Process করে Excel ডাউনলোড করুন" সবসময় সবার নিচে
+
+  window.scrollTo(scrollX, scrollY);
 }
 
 document.querySelectorAll('input[name="outhouse_file_type"]').forEach(radio => {
@@ -612,10 +720,16 @@ customerTypeSel.addEventListener('change', () => {
   toggleOuthouseExcelCard();
 });
 
-// --- Buyer combo ---
+// --- Buyer combo — OUT-HOUSE-এ Customer-অনুযায়ী ফিল্টার হয় (Delivery
+// Address-এর মতোই), IN-HOUSE-এ সবসময় পুরো লিস্ট ---
 const buyerCombo = setupCombo({
   inputId: 'buyer_name', panelId: 'buyer_panel', clearId: 'buyer_clear',
-  getOptions: () => BUYERS,
+  getOptions: () => {
+    if (customerTypeSel.value !== 'OUT-HOUSE') return BUYERS;
+    const custName = document.getElementById('customer_name').value.trim();
+    return OUTHOUSE_CUSTOMER_BUYERS[custName] || BUYERS;
+  },
+  onSelect: () => { updateItemPlyLockState(); },
 });
 
 // --- Primark-এর জন্য স্পেশাল Package Weight সিলেক্টর — Buyer 'Primark' হলেই দেখাবে ---
@@ -637,6 +751,31 @@ function getPrimarkWeightClass() {
 
 buyerNameInput.addEventListener('input', togglePrimarkWeightField);
 buyerNameInput.addEventListener('change', togglePrimarkWeightField);
+buyerNameInput.addEventListener('input', updateItemPlyLockState);
+buyerNameInput.addEventListener('change', updateItemPlyLockState);
+
+// --- Norp Knit-এর মতো কিছু Customer+Buyer কম্বিনেশনে Item Name/Ply এক্সেল
+// থেকেই প্রতি রো-তে অটো ঠিক হয়ে যায় — তখন dropdown দুটো লক/ব্লার করে একটা
+// নোট দেখানো হয়, যাতে ইউজারকে আর ম্যানুয়ালি সিলেক্ট করতে না হয় ---
+function isAutoItemPlyCombo() {
+  const custName = document.getElementById('customer_name').value.trim();
+  const buyerName = buyerNameInput.value.trim();
+  return OUTHOUSE_AUTO_ITEM_PLY_COMBOS.some(([c, b]) => c === custName && b === buyerName);
+}
+
+function updateItemPlyLockState() {
+  const itemNameSel = document.getElementById('outhouse_item_name');
+  const plySel = document.getElementById('outhouse_ply');
+  const note = document.getElementById('itemPlyAutoNote');
+  if (!itemNameSel || !plySel || !note) return;
+
+  const locked = isAutoItemPlyCombo();
+  itemNameSel.disabled = locked;
+  plySel.disabled = locked;
+  itemNameSel.classList.toggle('field-locked', locked);
+  plySel.classList.toggle('field-locked', locked);
+  note.style.display = locked ? 'block' : 'none';
+}
 
 // --- Delivery Address combo (customer-অনুযায়ী ফিল্টার) ---
 const addressInput = document.getElementById('delivery_address');
@@ -699,6 +838,52 @@ function showOverlay(text) {
 }
 function hideOverlay() {
   pageOverlay.classList.remove('show');
+}
+
+// --- কাস্টম মডাল (browser-এর plain alert/confirm-এর বদলে, সিস্টেমের সাথে মিলিয়ে) ---
+const appModalOverlay = document.getElementById('appModalOverlay');
+const appModalIcon = document.getElementById('appModalIcon');
+const appModalTitle = document.getElementById('appModalTitle');
+const appModalMessage = document.getElementById('appModalMessage');
+const appModalActions = document.getElementById('appModalActions');
+
+function showAppModal({ title, message, icon = '⚠', tone = 'warn', buttons }) {
+  return new Promise(resolve => {
+    appModalTitle.textContent = title || '';
+    appModalMessage.textContent = message || '';
+    appModalIcon.textContent = icon;
+    appModalIcon.className = 'app-modal-icon' + (tone === 'info' ? ' info' : '');
+    appModalActions.innerHTML = '';
+    buttons.forEach(btn => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = btn.label;
+      b.className = 'app-modal-btn' + (btn.primary ? ' primary' : '');
+      b.addEventListener('click', () => {
+        appModalOverlay.classList.remove('show');
+        resolve(btn.value);
+      });
+      appModalActions.appendChild(b);
+    });
+    appModalOverlay.classList.add('show');
+  });
+}
+
+function appAlert(message, title = 'দয়া করে লক্ষ্য করুন') {
+  return showAppModal({
+    title, message, icon: '⚠', tone: 'warn',
+    buttons: [{ label: 'ঠিক আছে', value: true, primary: true }],
+  });
+}
+
+function appConfirm(message, title = 'নিশ্চিত করুন') {
+  return showAppModal({
+    title, message, icon: '?', tone: 'info',
+    buttons: [
+      { label: 'না, ফিরে যাই', value: false },
+      { label: 'হ্যাঁ, এগিয়ে যান', value: true, primary: true },
+    ],
+  });
 }
 
 // --- Force Override checkbox: চেক করলে বক্সটা লাল হয়ে ইমারজেন্সি-মোড বোঝাবে ---
@@ -868,7 +1053,7 @@ function resetForm() {
   [customerErr, buyerErr, dateErr, addressErr, poErr].forEach(el => el.style.display = 'none');
 }
 
-function clientSideValidate() {
+async function clientSideValidate() {
   let ok = true;
   [customerErr, buyerErr, dateErr, addressErr].forEach(el => el.style.display = 'none');
 
@@ -891,12 +1076,10 @@ function clientSideValidate() {
   if (addresses.length > 0 && !addrVal) {
     addressErr.style.display = 'block';
     ok = false;
-    window.alert(
-      '⚠️ Delivery Address ফাঁকা আছে!\n' +
-      'এটা সিলেক্ট না করে Process করা যাবে না।\n' +
-      'দয়া করে ড্রপডাউন থেকে সঠিক ডেলিভারি ঠিকানাটা বেছে নিন।'
+    await appAlert(
+      'এটা সিলেক্ট না করে Process করা যাবে না। দয়া করে ড্রপডাউন থেকে সঠিক ডেলিভারি ঠিকানাটা বেছে নিন।',
+      'Delivery Address ফাঁকা আছে'
     );
-    addressInput.focus();
   }
 
   const mode = document.querySelector('input[name="delivery_mode"]:checked').value;
@@ -916,7 +1099,7 @@ form.addEventListener('submit', async (e) => {
     statusMsg.className = 'status err';
     return;
   }
-  if (!clientSideValidate()) {
+  if (!(await clientSideValidate())) {
     statusMsg.textContent = 'উপরের ফিল্ডগুলো ঠিক করুন (লাল দেখানো জায়গাগুলো)';
     statusMsg.className = 'status err';
     return;
@@ -926,7 +1109,7 @@ form.addEventListener('submit', async (e) => {
 
   // --- Primark: ABOVE/BELOW 10KG বাধ্যতামূলক সিলেক্ট করতে হবে ---
   if (trimsBookingMode && isPrimarkBuyer() && !getPrimarkWeightClass()) {
-    window.alert('Primark buyer-এর জন্য "ABOVE 10KG" বা "BELOW 10KG" সিলেক্ট করা আবশ্যক — অনুগ্রহ করে সিলেক্ট করে আবার Process করুন।');
+    await appAlert('"ABOVE 10KG" বা "BELOW 10KG" সিলেক্ট করা আবশ্যক — অনুগ্রহ করে সিলেক্ট করে আবার Process করুন।', 'Primark: Package Weight প্রয়োজন');
     return;
   }
 
@@ -1032,7 +1215,7 @@ excelSubmitBtn.addEventListener('click', async () => {
     excelStatusMsg.className = 'status err';
     return;
   }
-  if (!clientSideValidate()) {
+  if (!(await clientSideValidate())) {
     excelStatusMsg.textContent = 'উপরের ফিল্ডগুলো ঠিক করুন (Customer/Buyer/Delivery Address লাল দেখানো জায়গাগুলো)';
     excelStatusMsg.className = 'status err';
     return;
@@ -1040,10 +1223,11 @@ excelSubmitBtn.addEventListener('click', async () => {
 
   // --- Ply ফাঁকা থাকলে confirm করে নেওয়া হচ্ছে (এক্সেলে Ply কলাম থাকলে সেটাই ব্যবহার হবে) ---
   const plyVal = document.getElementById('outhouse_ply').value;
-  if (!plyVal) {
-    const proceed = window.confirm(
-      'Ply সিলেক্ট করা হয়নি।\n' +
-      'এক্সেল ফাইলে Ply কলাম না থাকলে Ply ছাড়াই (N/A) প্রসিড করতে চান?'
+  const plyLocked = document.getElementById('outhouse_ply').disabled;
+  if (!plyVal && !plyLocked) {
+    const proceed = await appConfirm(
+      'এক্সেল ফাইলে Ply কলাম না থাকলে Ply ছাড়াই (N/A) প্রসিড করতে চান?',
+      'Ply সিলেক্ট করা হয়নি'
     );
     if (!proceed) {
       excelStatusMsg.textContent = 'Ply সিলেক্ট করে আবার Process করুন, অথবা কনফার্ম করে এগিয়ে যান';
@@ -1110,6 +1294,7 @@ excelSubmitBtn.addEventListener('click', async () => {
 });
 
 toggleOuthouseExcelCard();  // পেজ লোড হওয়ার সাথে সাথে সঠিক কার্ড দেখানোর জন্য (এখানে কল করা হচ্ছে যাতে submitBtn ইত্যাদি সব const আগেই ডিক্লেয়ার হয়ে যায়)
+updateItemPlyLockState();
 </script>
 </body>
 </html>

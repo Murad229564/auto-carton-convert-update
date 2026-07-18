@@ -17,7 +17,11 @@ from validators import (
     validate_delivery_address, validate_matches_pdf, values_match_ci,
 )
 from date_logic import get_default_delivery_date, validate_manual_delivery_date, format_delivery_date
-from config import CUSTOMERS, BUYERS, DELIVERY_ADDRESSES, BUYER_ALIASES, CUSTOMER_ALIASES, CARTON_VERIFIED_BUYERS, resolve_alias
+from config import (
+    CUSTOMERS, BUYERS, DELIVERY_ADDRESSES, BUYER_ALIASES, CUSTOMER_ALIASES,
+    CARTON_VERIFIED_BUYERS, OUTHOUSE_CUSTOMER_BUYERS, OUTHOUSE_AUTO_ITEM_PLY_COMBOS,
+    resolve_alias,
+)
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 20 * 1024 * 1024  # 20MB
@@ -36,6 +40,8 @@ def autocarton_index():
         customers=CUSTOMERS,
         buyers=BUYERS,
         delivery_addresses=DELIVERY_ADDRESSES,
+        outhouse_customer_buyers=OUTHOUSE_CUSTOMER_BUYERS,
+        outhouse_auto_item_ply_combos=OUTHOUSE_AUTO_ITEM_PLY_COMBOS,
     )
 
 
